@@ -1,4 +1,4 @@
-use crate::crypt;
+use crate::crypto;
 use crate::store;
 use rpassword::prompt_password;
 use std::fs;
@@ -27,7 +27,7 @@ pub fn setup_vodka() -> std::io::Result<()> {
     
     fs::create_dir_all(dir_path)?;
     
-    if let Some(hashed) = crypt::get_hashed(master_pass.as_bytes())
+    if let Some(hashed) = crypto::hash_bcrypt(master_pass.as_bytes())
     {
         store::write_to_file(".master_key", hashed, false);
     } else {
