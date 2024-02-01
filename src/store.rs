@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use rusqlite::{Connection, params};
 use std::fs;
 use std::io::Read;
@@ -75,7 +77,7 @@ pub fn add_entry(name: &str, login: &str, password: &[u8], comment: &str) -> Res
     )?;
 
     transaction.commit()?;
-    connection.close();
+    connection.close().expect("Error: something weird happened while closing sqlite connection.");
 
     Ok(())
 }

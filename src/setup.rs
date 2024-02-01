@@ -5,23 +5,23 @@ use std::fs;
 use std::path::PathBuf;
 
 pub fn setup_vodka() -> std::io::Result<()> {
-    println!("Welcome! You have no idea about the greatness that you are in for!\n");
-    
     let vodka_dir = ".vodka";
     let mut dir_path = PathBuf::new();
-
+    
     if let Some(home_dir) = dirs::home_dir() {
         dir_path = home_dir.join(vodka_dir);
     }
-
+    
     if dir_path.exists() {
-        println!("Warning: vodka already set up at {:?}. Aborting.", dir_path);
+        eprintln!("Warning: vodka already set up at {:?}. Aborting.", dir_path);
         return Ok(());
     }
 
-    let master_pass = prompt_password("Enter master password: ").unwrap();
-    if master_pass != prompt_password("Confirm master password: ").unwrap() {
-        eprintln!("Error: Master password does not match!");
+    eprintln!("Welcome to vodka! You have no idea about the greatness that you are in for!\n\nPlease enter a master key, which will be used for adding and retrieving passwords.\n");
+
+    let master_pass = prompt_password("Enter master key: ").unwrap();
+    if master_pass != prompt_password("Confirm master key: ").unwrap() {
+        eprintln!("Error: Please enter the same master key!");
         return Ok(());
     }
     
@@ -29,9 +29,7 @@ pub fn setup_vodka() -> std::io::Result<()> {
     
     if let Some(hashed) = crypto::hash_bcrypt(master_pass.as_bytes())
     {
-        store::write_to_file(".master_key", hashed, false);
-    } else {
-        println!("Something weird happened.");
+        store::write_to_file(".master_key", hashed, false).expect("Error: something weird happened while writing master key.");
     }
     
     Ok(())

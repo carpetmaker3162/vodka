@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use aes::Aes256;
 use aes::cipher::{BlockEncrypt, BlockDecrypt, KeyInit};
 use aes::cipher::generic_array::GenericArray;
@@ -45,18 +47,14 @@ pub fn verify_password(password: &[u8]) -> Option<bool> {
 }
 
 pub fn encrypt_aes256(data: &[u8], key: &[u8]) -> Vec<u8> {
-    // Check if the key length is correct
     assert_eq!(key.len(), 32, "Key length must be 32 bytes (256 bits)");
 
-    // Create an AES-256 block cipher instance with the provided key
     let cipher = Aes256::new(GenericArray::from_slice(key));
 
-    // Pad the input data to be a multiple of the block size (16 bytes for AES)
     let mut padded_data = data.to_vec();
     let padding_length = 16 - (data.len() % 16);
     padded_data.extend(vec![padding_length as u8; padding_length]);
 
-    // Encrypt the padded data block by block
     let mut encrypted_data = Vec::new();
     for chunk in padded_data.chunks_exact(16) {
         let mut block = GenericArray::clone_from_slice(chunk);
@@ -69,13 +67,10 @@ pub fn encrypt_aes256(data: &[u8], key: &[u8]) -> Vec<u8> {
 }
 
 pub fn decrypt_aes256(encrypted_data: &[u8], key: &[u8]) -> Vec<u8> {
-    // Check if the key length is correct
     assert_eq!(key.len(), 32, "Key length must be 32 bytes (256 bits)");
 
-    // Create an AES-256 block cipher instance with the provided key
     let cipher = Aes256::new(GenericArray::from_slice(key));
 
-    // Decrypt the data block by block
     let mut decrypted_data = Vec::new();
     for chunk in encrypted_data.chunks_exact(16) {
         let mut block = GenericArray::clone_from_slice(chunk);
@@ -84,7 +79,6 @@ pub fn decrypt_aes256(encrypted_data: &[u8], key: &[u8]) -> Vec<u8> {
         decrypted_data.extend_from_slice(block.as_slice());
     }
 
-    // Remove padding from the decrypted data
     if let Some(&padding_length) = decrypted_data.last() {
         let padding_length = padding_length as usize;
         if padding_length <= decrypted_data.len() {

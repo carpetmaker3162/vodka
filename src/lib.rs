@@ -5,9 +5,11 @@ pub mod setup;
 pub mod crypto;
 pub mod store;
 
-pub fn add_password(name: &str, login: &str, password: &str, comment: &str, master_key: &[u8]) {
+pub fn add_password(name: &str, login: &str, password: &str, comment: &str, master_key: &[u8]) -> Result<(), rusqlite::Error> {
     let encrypted = crypto::encrypt_aes256(password.as_bytes(), master_key);
-    store::add_entry(name, login, &encrypted, comment);
+    store::add_entry(name, login, &encrypted, comment)?;
+    
+    Ok(())
 }
 
 pub fn get_password(name: &str, master_key: &[u8]) -> Option<String> {
