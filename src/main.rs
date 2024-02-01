@@ -29,7 +29,6 @@ fn main() -> std::io::Result<()> {
     let master_key_sha256: Vec<u8>;
     if crypto::verify_password(master_key_plaintext.as_bytes()).unwrap() {
         master_key_sha256 = crypto::hash_sha256(master_key_plaintext.as_bytes());
-        println!("{}", master_key_sha256.len());
         vodka::add_password("Google", "needmoney33", "goodbye987", "", &master_key_sha256);
         
         if let Some(string) = vodka::get_password("Google", &master_key_sha256) {

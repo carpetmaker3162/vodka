@@ -5,13 +5,6 @@ pub mod setup;
 pub mod crypto;
 pub mod store;
 
-struct Entry {
-    name: String,
-    login: String,
-    password: String,
-    comment: String,
-}
-
 pub fn add_password(name: &str, login: &str, password: &str, comment: &str, master_key: &[u8]) {
     let encrypted = crypto::encrypt_aes256(password.as_bytes(), master_key);
     store::add_entry(name, login, &encrypted, comment);
@@ -43,10 +36,5 @@ pub fn get_password(name: &str, master_key: &[u8]) -> Option<String> {
 
     let decrypted_password_bytes = crypto::decrypt_aes256(&query_match, master_key);
     
-    match String::from_utf8(decrypted_password_bytes) {
-        Ok(string) => { return Some(string) },
-        Err(e) => { eprintln!("{}", e); }
-    }
-
-    None
+    String::from_utf8(decrypted_password_bytes).ok()
 }
