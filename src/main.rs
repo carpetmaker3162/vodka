@@ -26,6 +26,10 @@ fn cli() -> Command {
                 .about("Copy an existing password to clipboard")
                 .arg(arg!(<NAME>).required(true))
         )
+        .subcommand(
+            Command::new("change-master")
+                .about("Change the master key")
+        )
 }
 
 // Ask the user for the master key. Once verified, returns the SHA-256 of the password
@@ -83,6 +87,17 @@ fn main() -> std::io::Result<()> {
             } else {
                 eprintln!("Error: Failed to fetch password (likely because .vodka folder doesn't exist)")
             }
+        },
+        Some(("change-master", _)) => {
+            unlock();
+            
+            let new_master_key = prompt_password("Enter new master key: ").unwrap();
+            if new_master_key != prompt_password("Confirm new master key: ").unwrap() {
+                eprintln!("Error: Please enter the same master key! (No changes were made)");
+                std::process::exit(1);
+            }
+
+            setup::set_master(new_master_key, true)?;
         },
         _ => {}
     }
