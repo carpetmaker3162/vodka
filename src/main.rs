@@ -34,7 +34,11 @@ fn cli() -> Command {
 
 // Ask the user for the master key. Once verified, returns the SHA-256 of the password
 fn unlock() -> Vec<u8> {
-    let master_key_plaintext = prompt_password("Enter master key: ").unwrap();
+    unlock_with_prompt("Enter master key: ")
+}
+
+fn unlock_with_prompt(prompt: &str) -> Vec<u8> {
+    let master_key_plaintext = prompt_password(prompt).unwrap();
     
     if crypto::verify_password(master_key_plaintext.as_bytes()).unwrap() {
         return crypto::hash_sha256(master_key_plaintext.as_bytes());
@@ -89,7 +93,7 @@ fn main() -> std::io::Result<()> {
             }
         },
         Some(("change-master", _)) => {
-            unlock();
+            unlock_with_prompt("Enter old master key: ");
             
             let new_master_key = prompt_password("Enter new master key: ").unwrap();
             if new_master_key != prompt_password("Confirm new master key: ").unwrap() {
