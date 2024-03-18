@@ -34,6 +34,7 @@ pub fn write_to_file(file_name: &str, content: String, overwrite: bool) -> std::
 
     if file_path.exists() && !overwrite {
         eprintln!("Error: file {:?} already exists", file_path);
+        return Ok(());
     }
 
     let mut file = fs::File::create(&file_path)?;

@@ -38,14 +38,22 @@ fn unlock() -> Vec<u8> {
 }
 
 fn unlock_with_prompt(prompt: &str) -> Vec<u8> {
-    let master_key_plaintext = prompt_password(prompt).unwrap();
-    
-    if crypto::verify_password(master_key_plaintext.as_bytes()).unwrap() {
-        return crypto::hash_sha256(master_key_plaintext.as_bytes());
-    } else {
-        eprintln!("Error: Failed to verify!");
+    if !setup::vodka_is_setup() {
+        eprintln!("Vodka is not set up!");
+        eprintln!("To set up: `vodka setup`");
         std::process::exit(1);
     }
+
+    let master_key_plaintext = prompt_password(prompt).unwrap();
+    
+    if let Some(verified) = crypto::verify_password(master_key_plaintext.as_bytes()) {
+        if verified {
+            return crypto::hash_sha256(master_key_plaintext.as_bytes());
+        }
+    }
+    
+    eprintln!("Error: Failed to verify!");
+    std::process::exit(1);
 }
 
 fn main() -> std::io::Result<()> {
@@ -59,6 +67,8 @@ fn main() -> std::io::Result<()> {
             }
         },
         Some(("add", sub_matches)) => {
+            let master_key_sha256 = unlock();
+
             let login_arg = sub_matches.get_one::<String>("LOGIN").unwrap();
             let password = sub_matches.get_one::<String>("password").unwrap();
             let default_comment = String::new();
@@ -73,17 +83,16 @@ fn main() -> std::io::Result<()> {
                 _ => (String::new(), login_arg.clone())
             };
 
-            let master_key_sha256 = unlock();
             match vodka::add_password(&name, &login, password, comment, &master_key_sha256) {
                 Ok(_) => {},
                 Err(e) => { eprintln!("Error while adding password: {}", e); }
             }
         },
         Some(("copy", sub_matches)) => {
-            let name = sub_matches.get_one::<String>("NAME").unwrap();
+            let master_key_sha256 = unlock();
             
             // TODO: search for passwords using login as well. (currently the login field is useless)
-            let master_key_sha256 = unlock();
+            let name = sub_matches.get_one::<String>("NAME").unwrap();
 
             if let Some(password) = vodka::get_password(&name, &master_key_sha256) {
                 let mut clipboard = Clipboard::new().unwrap();

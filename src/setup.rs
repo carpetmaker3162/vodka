@@ -13,16 +13,36 @@ pub fn set_master(master_key: String, overwrite: bool) -> std::io::Result<()> {
     Ok(())
 }
 
+pub fn vodka_is_setup() -> bool {
+    let mut vodka_path = PathBuf::new();
+    let vodka_dir = ".vodka";
+    if let Some(home_dir) = dirs::home_dir() {
+        vodka_path = home_dir.join(vodka_dir);
+    }
+
+    if !vodka_path.exists() {
+        return false;
+    }
+
+    let master_key_path = vodka_path.join(".master_key");
+    
+    if !master_key_path.exists() {
+        return false;
+    }
+
+    true
+}
+
 pub fn setup_vodka() -> std::io::Result<()> {
     let vodka_dir = ".vodka";
-    let mut dir_path = PathBuf::new();
+    let mut vodka_path = PathBuf::new();
     
     if let Some(home_dir) = dirs::home_dir() {
-        dir_path = home_dir.join(vodka_dir);
+        vodka_path = home_dir.join(vodka_dir);
     }
     
-    if dir_path.exists() {
-        eprintln!("Warning: vodka already set up at {:?}. Aborting.", dir_path);
+    if vodka_path.exists() {
+        eprintln!("Warning: vodka already set up at {:?}. Aborting.", vodka_path);
         return Ok(());
     }
 
@@ -34,7 +54,10 @@ pub fn setup_vodka() -> std::io::Result<()> {
         return Ok(());
     }
     
-    fs::create_dir_all(dir_path)?;
+    match fs::create_dir_all(vodka_path) {
+        Ok(_) => {},
+        Err(_) => {},
+    }
     
     set_master(master_key, false)?;
     
