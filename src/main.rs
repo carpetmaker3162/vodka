@@ -1,7 +1,7 @@
 use arboard::Clipboard;
 use clap::{arg, Command};
 use rpassword::prompt_password;
-use vodka::{setup, Entry};
+use vodka::{crypto, setup, Entry};
 
 fn cli() -> Command {
     Command::new("vodka")
@@ -15,8 +15,9 @@ fn cli() -> Command {
             Command::new("add")
                 .about("Add a new password")
                 .arg(arg!(<FULLNAME>).required(true))
-                .arg(arg!(-p --password <PASSWORD>).required(true))
+                .arg(arg!(-p --password <PASSWORD>).required_unless_present("random"))
                 .arg(arg!(-c --comment <COMMENT>).required(false))
+                .arg(arg!(-r --random).num_args(0))
         )
         .subcommand(
             Command::new("copy")
@@ -42,10 +43,16 @@ fn main() -> std::io::Result<()> {
         Some(("add", sub_matches)) => {
             let master_key_sha256 = vodka::unlock();
 
+            
             let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
             let (login, name) = vodka::parse_fullname(fullname);
-            let password_unencrypted = sub_matches.get_one::<String>("password").unwrap().to_string();
             let comment = sub_matches.get_one::<String>("comment").unwrap_or(&String::new()).to_string();
+            let password_unencrypted: String;
+            if sub_matches.contains_id("random") {
+                password_unencrypted = crypto::get_random_password();
+            } else {
+                password_unencrypted = sub_matches.get_one::<String>("password").unwrap().to_string()
+            }
 
             let entry = Entry::new(name, login, password_unencrypted, comment, &master_key_sha256);
             match vodka::add_password(entry) {
@@ -64,6 +71,18 @@ fn main() -> std::io::Result<()> {
                 let mut clipboard = Clipboard::new().unwrap();
                 clipboard.set_text(password).unwrap();
             }
+        },
+        Some(("search", sub_matches)) => {
+            
+        },
+        Some(("list", sub_matches)) => {
+
+        },
+        Some(("export", sub_matches)) => {
+            
+        },
+        Some(("import", sub_matches)) => {
+            
         },
         Some(("change-master", _)) => {
             vodka::unlock_with_prompt("Enter old master key: ");

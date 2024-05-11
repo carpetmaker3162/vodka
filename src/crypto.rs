@@ -9,6 +9,7 @@ use argon2::password_hash::{
 };
 use crate::store;
 use rand_core::OsRng;
+use rand::{Rng, RngCore, prelude::SliceRandom};
 use sha2::{Sha256, Digest};
 
 pub fn hash_bcrypt(password: &[u8]) -> Option<String> {
@@ -87,4 +88,34 @@ pub fn decrypt_aes256(encrypted_data: &[u8], key: &[u8]) -> Vec<u8> {
     }
 
     decrypted_data
+}
+
+fn choose_random(chars: &Vec<char>) -> char {
+    chars[OsRng.gen_range(0..chars.len())]
+}
+
+pub fn get_random_password() -> String {
+    let mut password: Vec<char> = Vec::new();
+    
+    let mut charset: Vec<char> = ('A'..='Z')
+        .chain('a'..='z')
+        .chain('0'..='9')
+        .collect();
+    let special_chars: Vec<char> = "!@#$%^&*()-_+=[]{}|;:,.<>?".chars().collect();
+    charset.extend(&special_chars);
+    
+    password.push(OsRng.gen_range('A'..='Z'));
+    password.push(OsRng.gen_range('a'..='z'));
+    password.push(OsRng.gen_range('0'..='9'));
+    password.push(choose_random(&special_chars));
+
+    while password.len() < 24 {
+        password.push(choose_random(&charset)); // clone
+    }
+
+    let mut indices: Vec<usize> = (0..password.len()).collect();
+    indices.shuffle(&mut OsRng);
+    password = indices.iter().map(|&i| password[i]).collect();
+
+    password.into_iter().collect()
 }
