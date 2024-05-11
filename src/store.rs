@@ -1,20 +1,15 @@
 #![allow(dead_code)]
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, params, params_from_iter};
+use crate::{Entry, get_path, get_cellar_path};
 use std::fs;
 use std::io::Read;
 use std::io::Write;
-use std::path::PathBuf;
 
 pub fn read_file(file_name: &str) -> std::io::Result<String> {
-    let mut file_path = PathBuf::new();
+    let file_path = get_path(file_name);
+    
     let mut file_content = String::new();
-    let vodka_dir = ".vodka";
-    
-    if let Some(home_dir) = dirs::home_dir() {
-        file_path = home_dir.join(vodka_dir).join(file_name);
-    }
-    
     let mut file = fs::File::open(&file_path)?;
     if let Err(err) = file.read_to_string(&mut file_content)
     {
@@ -25,12 +20,7 @@ pub fn read_file(file_name: &str) -> std::io::Result<String> {
 }
 
 pub fn write_to_file(file_name: &str, content: String, overwrite: bool) -> std::io::Result<()> {
-    let mut file_path = PathBuf::new();
-    let vodka_dir = ".vodka";
-
-    if let Some(home_dir) = dirs::home_dir() {
-        file_path = home_dir.join(vodka_dir).join(file_name);
-    }
+    let file_path = get_path(file_name);
 
     if file_path.exists() && !overwrite {
         eprintln!("Error: file {:?} already exists", file_path);
@@ -46,14 +36,8 @@ pub fn write_to_file(file_name: &str, content: String, overwrite: bool) -> std::
     Ok(())
 }
 
-pub fn add_entry(name: &str, login: &str, password: &[u8], comment: &str) -> Result<(), rusqlite::Error> {
-    let mut file_path = PathBuf::new();
-    let vodka_dir = ".vodka";
-    let db_file = "cellar.sqlite";
-
-    if let Some(home_dir) = dirs::home_dir() {
-        file_path = home_dir.join(vodka_dir).join(db_file);
-    }
+pub fn add_entry(name: String, login: String, password: &[u8], comment: String) -> Result<(), rusqlite::Error> {
+    let file_path = get_cellar_path();
 
     let mut connection: Connection;
     if !file_path.exists() {
@@ -81,4 +65,43 @@ pub fn add_entry(name: &str, login: &str, password: &[u8], comment: &str) -> Res
     connection.close().expect("Error: something weird happened while closing sqlite connection.");
 
     Ok(())
+}
+
+pub fn search_entries(name: String, login: String) -> Vec<Entry> {
+    let file_path = get_cellar_path();
+    let mut connection = Connection::open(file_path).unwrap();
+    let transaction = connection.transaction().unwrap();
+    let mut query_command = String::from("SELECT name, login, password, comment FROM passwords");
+    let mut query_params = Vec::new();
+
+    if !name.is_empty() {
+        query_command.push_str(" WHERE name = ?");
+        query_params.push(name.clone());
+    }
+
+    if !login.is_empty() {
+        if name.is_empty() {
+            query_command.push_str(" WHERE login = ?");
+        } else {
+            query_command.push_str(" AND login = ?");
+        }
+        query_params.push(login);
+    }
+
+    let mut stmt = transaction
+        .prepare(&query_command)
+        .unwrap();
+    let query_match = stmt
+        .query_map(params_from_iter(query_params), |row| {
+            Ok(Entry {
+                name: row.get(0)?,
+                login: row.get(1)?,
+                password: row.get(2)?,
+                comment: row.get(3)?,
+            })
+        });
+
+    let entries: Result<Vec<Entry>, rusqlite::Error> = query_match.unwrap().collect();
+
+    entries.unwrap()
 }

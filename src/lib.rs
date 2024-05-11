@@ -1,57 +1,91 @@
 use rpassword::prompt_password;
-use rusqlite::{Connection, params};
 use std::path::PathBuf;
 
 pub mod setup;
 pub mod crypto;
 pub mod store;
 
-pub fn add_password(name: &str, login: &str, password: &str, comment: &str, master_key: &[u8]) -> Result<(), rusqlite::Error> {
-    let encrypted = crypto::encrypt_aes256(password.as_bytes(), master_key);
-    store::add_entry(name, login, &encrypted, comment)?;
+pub struct Entry {
+    pub name: String,
+    pub login: String,
+    pub password: Vec<u8>, // encrypted
+    pub comment: String
+}
+
+impl Entry {
+    // create an Entry with unencrypted password and master key
+    pub fn new(name: String, login: String, password: String, comment: String, master_key: &[u8]) -> Entry {
+        Entry {
+            name,
+            login,
+            password: crypto::encrypt_aes256(password.as_bytes(), master_key),
+            comment
+        }
+    }
+
+    pub fn decrypted_password(&self, master_key: &[u8]) -> String {
+        let decrypted_password_bytes = crypto::decrypt_aes256(&self.password, master_key);
+        String::from_utf8(decrypted_password_bytes).unwrap()
+    }
+}
+
+pub fn get_cellar_path() -> PathBuf {
+    get_path("cellar.sqlite")
+}
+
+pub fn get_path(file_name: &str) -> PathBuf {
+    let mut file_path = PathBuf::new();
+    let vodka_dir = ".vodka";
+
+    if let Some(home_dir) = dirs::home_dir() {
+        file_path = home_dir.join(vodka_dir).join(file_name);
+    }
+    
+    if !file_path.exists() {
+        eprintln!("Error: file {} not found!", file_name);
+        std::process::exit(1);
+    }
+
+    file_path
+}
+
+// `login@name` or `name`
+pub fn parse_fullname(fullname: String) -> (String, String) {
+    match fullname.rfind("@") {
+        Some(index) => {
+            let login = fullname[..index].to_string();
+            let name = fullname[index + 1..].to_string();
+            (login, name)
+        },
+        _ => (String::new(), fullname.clone())
+    }
+}
+
+pub fn add_password(entry: Entry) -> Result<(), rusqlite::Error> {
+    store::add_entry(entry.name, entry.login, &entry.password, entry.comment)?;
     
     Ok(())
 }
 
-pub fn get_password(name: &str, master_key: &[u8]) -> Option<String> {
-    let mut file_path = PathBuf::new();
-    let vodka_dir = ".vodka";
-    let db_file = "cellar.sqlite";
-
-    if let Some(home_dir) = dirs::home_dir() {
-        file_path = home_dir.join(vodka_dir).join(db_file);
-    }
+pub fn get_password(name: String, login: String, master_key: &[u8], strict: bool) -> Option<String> {
+    let result_entries: Vec<Entry> = store::search_entries(name, login.clone());
     
-    if !file_path.exists() {
-        return None;
+    if result_entries.len() == 1 {
+        return Some(result_entries[0].decrypted_password(master_key));
+    } else if result_entries.len() == 0 {
+        eprintln!("No entries found!");
+        std::process::exit(1);
     }
 
-    let mut connection = Connection::open(file_path).unwrap();
-    let transaction = connection.transaction().unwrap();
-
-    let query_match = match transaction.query_row(
-        "SELECT password FROM passwords WHERE name = ?",
-        params![name],
-        |row| {
-            row.get::<usize, Vec<u8>>(0)
+    // if looking for a single entry, and no login is provided, return the entry with no login
+    if strict && login.is_empty() {
+        if let Some(entry) = result_entries.iter().find(|&entry| entry.login.is_empty()) {
+            return Some(entry.decrypted_password(master_key));
         }
-    ) {
-        Ok(query_match) => { query_match },
-        Err(err) => match err {
-            rusqlite::Error::QueryReturnedNoRows => {
-                eprintln!("No such entry found!");
-                std::process::exit(1);
-            }
-            _ => {
-                eprintln!("Some other error occurred: {}", err);
-                std::process::exit(1);
-            }
-        }
-    };
-
-    let decrypted_password_bytes = crypto::decrypt_aes256(&query_match, master_key);
+    }
     
-    String::from_utf8(decrypted_password_bytes).ok()
+    eprintln!("Multiple entries found! (not implemented yet)");
+    std::process::exit(0);
 }
 
 // Ask the user for the master key. Once verified, returns the SHA-256 of the password

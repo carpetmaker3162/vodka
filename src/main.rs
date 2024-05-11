@@ -1,7 +1,7 @@
 use arboard::Clipboard;
 use clap::{arg, Command};
 use rpassword::prompt_password;
-use vodka::setup;
+use vodka::{setup, Entry};
 
 fn cli() -> Command {
     Command::new("vodka")
@@ -14,14 +14,14 @@ fn cli() -> Command {
         .subcommand(
             Command::new("add")
                 .about("Add a new password")
-                .arg(arg!(<LOGIN>).required(true))
+                .arg(arg!(<FULLNAME>).required(true))
                 .arg(arg!(-p --password <PASSWORD>).required(true))
                 .arg(arg!(-c --comment <COMMENT>).required(false))
         )
         .subcommand(
             Command::new("copy")
                 .about("Copy an existing password to clipboard")
-                .arg(arg!(<NAME>).required(true))
+                .arg(arg!(<FULLNAME>).required(true))
         )
         .subcommand(
             Command::new("change-master")
@@ -42,36 +42,27 @@ fn main() -> std::io::Result<()> {
         Some(("add", sub_matches)) => {
             let master_key_sha256 = vodka::unlock();
 
-            let login_arg = sub_matches.get_one::<String>("LOGIN").unwrap();
-            let password = sub_matches.get_one::<String>("password").unwrap();
-            let default_comment = String::new();
-            let comment = sub_matches.get_one::<String>("comment").unwrap_or(&default_comment);
-            
-            let (login, name) = match login_arg.rfind("@") {
-                Some(index) => {
-                    let login = login_arg[..index].to_string();
-                    let name = login_arg[index + 1..].to_string();
-                    (login, name)
-                },
-                _ => (String::new(), login_arg.clone())
-            };
+            let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
+            let (login, name) = vodka::parse_fullname(fullname);
+            let password_unencrypted = sub_matches.get_one::<String>("password").unwrap().to_string();
+            let comment = sub_matches.get_one::<String>("comment").unwrap_or(&String::new()).to_string();
 
-            match vodka::add_password(&name, &login, password, comment, &master_key_sha256) {
+            let entry = Entry::new(name, login, password_unencrypted, comment, &master_key_sha256);
+            match vodka::add_password(entry) {
                 Ok(_) => {},
                 Err(e) => { eprintln!("Error while adding password: {}", e); }
             }
         },
         Some(("copy", sub_matches)) => {
             let master_key_sha256 = vodka::unlock();
-            
-            // TODO: search for passwords using login as well. (currently the login field is useless)
-            let name = sub_matches.get_one::<String>("NAME").unwrap();
 
-            if let Some(password) = vodka::get_password(&name, &master_key_sha256) {
+            let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
+            let (login, name) = vodka::parse_fullname(fullname);
+
+            // strict search
+            if let Some(password) = vodka::get_password(name, login, &master_key_sha256, true) {
                 let mut clipboard = Clipboard::new().unwrap();
                 clipboard.set_text(password).unwrap();
-            } else {
-                eprintln!("Error: Failed to fetch password (likely because .vodka folder doesn't exist)")
             }
         },
         Some(("change-master", _)) => {
