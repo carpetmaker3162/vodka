@@ -1,7 +1,8 @@
 use arboard::Clipboard;
 use clap::{arg, Command};
 use rpassword::prompt_password;
-use vodka::{crypto, setup, Entry};
+use vodka::{crypto, setup, transport};
+use vodka::{Entry, ask_for_confirmation};
 
 fn cli() -> Command {
     Command::new("vodka")
@@ -28,9 +29,19 @@ fn cli() -> Command {
             Command::new("change-master")
                 .about("Change the master key")
         )
+        .subcommand(
+            Command::new("export")
+                .about("Export your passwords to a CSV file. Warning: They will be unencrypted so delete the file after you're done with it.")
+                .arg(arg!(<FILE>).required(true))
+        )
+        .subcommand(
+            Command::new("import")
+                .about("Import passwords from a CSV file")
+                .arg(arg!(<FILE>).required(true))
+        )
 }
 
-fn main() -> std::io::Result<()> {
+fn main() -> Result<(), vodka::Error> {
     let matches = cli().get_matches();
     
     match matches.subcommand() {
@@ -43,7 +54,6 @@ fn main() -> std::io::Result<()> {
         Some(("add", sub_matches)) => {
             let master_key_sha256 = vodka::unlock();
 
-            
             let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
             let (login, name) = vodka::parse_fullname(fullname);
             let comment = sub_matches.get_one::<String>("comment").unwrap_or(&String::new()).to_string();
@@ -57,7 +67,7 @@ fn main() -> std::io::Result<()> {
             let entry = Entry::new(name, login, password_unencrypted, comment, &master_key_sha256);
             match vodka::add_password(entry) {
                 Ok(_) => {},
-                Err(e) => { eprintln!("Error while adding password: {}", e); }
+                Err(e) => { eprintln!("Error while adding password: {:?}", e); }
             }
         },
         Some(("copy", sub_matches)) => {
@@ -72,17 +82,37 @@ fn main() -> std::io::Result<()> {
                 clipboard.set_text(password).unwrap();
             }
         },
-        Some(("search", sub_matches)) => {
+        /* Some(("search", sub_matches)) => {
             
         },
         Some(("list", sub_matches)) => {
 
-        },
+        }, */
         Some(("export", sub_matches)) => {
-            
+            let master_key_sha256 = vodka::unlock();
+
+            let file_path = sub_matches.get_one::<String>("FILE").unwrap().as_str();
+            if let Err(e) = transport::export(file_path, &master_key_sha256, false) {
+                match e.kind() {
+                    vodka::ErrorKind::ExportFileExists => if ask_for_confirmation(format!("{} already exists. This will overwrite the existing file.", file_path)) {
+                            transport::export(file_path, &master_key_sha256, true)?;
+                        },
+                    _ => { eprintln!("Error during exporting: {:?}", e) },
+                }
+            }
         },
         Some(("import", sub_matches)) => {
-            
+            let master_key_sha256 = vodka::unlock();
+
+            let file_path = sub_matches.get_one::<String>("FILE").unwrap().as_str();
+            if let Err(e) = transport::import(file_path, &master_key_sha256, false) {
+                match e.kind() {
+                    vodka::ErrorKind::ImportFileExists => if ask_for_confirmation(String::from("cellar.sqlite already exists. This will overwrite the existing file.")) {
+                            transport::import(file_path, &master_key_sha256, true)?;
+                        },
+                    _ => { eprintln!("Error during importing: {:?}", e) },
+                }
+            }
         },
         Some(("change-master", _)) => {
             vodka::unlock_with_prompt("Enter old master key: ");

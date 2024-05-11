@@ -9,7 +9,7 @@ use argon2::password_hash::{
 };
 use crate::store;
 use rand_core::OsRng;
-use rand::{Rng, RngCore, prelude::SliceRandom};
+use rand::{Rng, prelude::SliceRandom};
 use sha2::{Sha256, Digest};
 
 pub fn hash_bcrypt(password: &[u8]) -> Option<String> {

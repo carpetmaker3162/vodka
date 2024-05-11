@@ -1,10 +1,13 @@
 use rpassword::prompt_password;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub mod setup;
 pub mod crypto;
 pub mod store;
+pub mod transport;
 
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Entry {
     pub name: String,
     pub login: String,
@@ -23,9 +26,74 @@ impl Entry {
         }
     }
 
-    pub fn decrypted_password(&self, master_key: &[u8]) -> String {
+    pub fn get_password(&self, master_key: &[u8]) -> String {
         let decrypted_password_bytes = crypto::decrypt_aes256(&self.password, master_key);
         String::from_utf8(decrypted_password_bytes).unwrap()
+    }
+
+    pub fn decrypted(&self, master_key: &[u8]) -> DecryptedEntry {
+        DecryptedEntry {
+            name: self.name.clone(),
+            login: self.login.clone(),
+            password: self.get_password(master_key),
+            comment: self.comment.clone()
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DecryptedEntry {
+    pub name: String,
+    pub login: String,
+    pub password: String,
+    pub comment: String
+}
+
+#[derive(Debug)]
+pub enum Error {
+    ExportFileExists,
+    ImportFileExists,
+    CsvError(csv::Error),
+    RusqliteError(rusqlite::Error),
+    IOError(std::io::Error),
+}
+
+#[derive(Debug)]
+pub enum ErrorKind {
+    ExportFileExists,
+    ImportFileExists,
+    CsvError,
+    RusqliteError,
+    IOError,
+}
+
+impl Error {
+    pub fn kind(&self) -> ErrorKind {
+        match self {
+            Error::ExportFileExists => ErrorKind::ExportFileExists,
+            Error::ImportFileExists => ErrorKind::ImportFileExists,
+            Error::CsvError(_) => ErrorKind::CsvError,
+            Error::RusqliteError(_) => ErrorKind::RusqliteError,
+            Error::IOError(_) => ErrorKind::IOError,
+        }
+    }
+}
+
+impl From<csv::Error> for Error {
+    fn from (err: csv::Error) -> Self {
+        Error::CsvError(err)
+    }
+}
+
+impl From<rusqlite::Error> for Error {
+    fn from (err: rusqlite::Error) -> Self {
+        Error::RusqliteError(err)
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from (err: std::io::Error) -> Self {
+        Error::IOError(err)
     }
 }
 
@@ -49,6 +117,10 @@ pub fn get_path(file_name: &str) -> PathBuf {
     file_path
 }
 
+pub fn get_relative_path(path: &str) -> PathBuf {
+    std::env::current_dir().unwrap().join(path)
+}
+
 // `login@name` or `name`
 pub fn parse_fullname(fullname: String) -> (String, String) {
     match fullname.rfind("@") {
@@ -61,7 +133,7 @@ pub fn parse_fullname(fullname: String) -> (String, String) {
     }
 }
 
-pub fn add_password(entry: Entry) -> Result<(), rusqlite::Error> {
+pub fn add_password(entry: Entry) -> Result<(), Error> {
     store::add_entry(entry.name, entry.login, &entry.password, entry.comment)?;
     
     Ok(())
@@ -71,7 +143,7 @@ pub fn get_password(name: String, login: String, master_key: &[u8], strict: bool
     let result_entries: Vec<Entry> = store::search_entries(name, login.clone());
     
     if result_entries.len() == 1 {
-        return Some(result_entries[0].decrypted_password(master_key));
+        return Some(result_entries[0].get_password(master_key));
     } else if result_entries.len() == 0 {
         eprintln!("No entries found!");
         std::process::exit(1);
@@ -80,7 +152,7 @@ pub fn get_password(name: String, login: String, master_key: &[u8], strict: bool
     // if looking for a single entry, and no login is provided, return the entry with no login
     if strict && login.is_empty() {
         if let Some(entry) = result_entries.iter().find(|&entry| entry.login.is_empty()) {
-            return Some(entry.decrypted_password(master_key));
+            return Some(entry.get_password(master_key));
         }
     }
     
@@ -110,4 +182,18 @@ pub fn unlock_with_prompt(prompt: &str) -> Vec<u8> {
     
     eprintln!("Error: Failed to verify!");
     std::process::exit(1);
+}
+
+pub fn ask_for_confirmation(message: String) -> bool {
+    eprintln!("{}\n", message);
+    eprint!("Proceed? [Y/n]: ");
+
+    let mut selection = String::new();
+    std::io::stdin().read_line(&mut selection).expect("Failed to read line");
+    
+    if selection.trim().to_lowercase().chars().next().unwrap() == 'y' {
+        return true;
+    }
+
+    false
 }
