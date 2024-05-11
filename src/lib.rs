@@ -16,7 +16,7 @@ pub struct Entry {
 }
 
 impl Entry {
-    // create an Entry with unencrypted password and master key
+    // create an Entry with plaintext password. need master key
     pub fn new(name: String, login: String, password: String, comment: String, master_key: &[u8]) -> Entry {
         Entry {
             name,
@@ -26,6 +26,7 @@ impl Entry {
         }
     }
 
+    // get decrypted password. need master key
     pub fn get_password(&self, master_key: &[u8]) -> String {
         let decrypted_password_bytes = crypto::decrypt_aes256(&self.password, master_key);
         String::from_utf8(decrypted_password_bytes).unwrap()
@@ -41,6 +42,7 @@ impl Entry {
     }
 }
 
+// for exporting to csv
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DecryptedEntry {
     pub name: String,
@@ -98,10 +100,11 @@ impl From<std::io::Error> for Error {
 }
 
 pub fn get_cellar_path() -> PathBuf {
-    get_path("cellar.sqlite")
+    get_vodka_path("cellar.sqlite")
 }
 
-pub fn get_path(file_name: &str) -> PathBuf {
+// get absolute path of a file in .vodka folder
+pub fn get_vodka_path(file_name: &str) -> PathBuf {
     let mut file_path = PathBuf::new();
     let vodka_dir = ".vodka";
 
@@ -117,7 +120,8 @@ pub fn get_path(file_name: &str) -> PathBuf {
     file_path
 }
 
-pub fn get_relative_path(path: &str) -> PathBuf {
+// i think this technically returns an absolute path but whatever
+pub fn get_absolute_path(path: &str) -> PathBuf {
     std::env::current_dir().unwrap().join(path)
 }
 
@@ -139,14 +143,14 @@ pub fn add_password(entry: Entry) -> Result<(), Error> {
     Ok(())
 }
 
+// will always return a single entry (for now?)
 pub fn get_password(name: String, login: String, master_key: &[u8], strict: bool) -> Option<String> {
     let result_entries: Vec<Entry> = store::search_entries(name, login.clone());
     
     if result_entries.len() == 1 {
         return Some(result_entries[0].get_password(master_key));
     } else if result_entries.len() == 0 {
-        eprintln!("No entries found!");
-        std::process::exit(1);
+        return None;
     }
 
     // if looking for a single entry, and no login is provided, return the entry with no login

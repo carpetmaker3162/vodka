@@ -94,6 +94,8 @@ fn choose_random(chars: &Vec<char>) -> char {
     chars[OsRng.gen_range(0..chars.len())]
 }
 
+// ensures at least 1 special char, number, capital letter
+// length 24
 pub fn get_random_password() -> String {
     let mut password: Vec<char> = Vec::new();
     

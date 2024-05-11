@@ -80,6 +80,8 @@ fn main() -> Result<(), vodka::Error> {
             if let Some(password) = vodka::get_password(name, login, &master_key_sha256, true) {
                 let mut clipboard = Clipboard::new().unwrap();
                 clipboard.set_text(password).unwrap();
+            } else {
+                eprintln!("No entries found!")
             }
         },
         /* Some(("search", sub_matches)) => {

@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 
 use rusqlite::{Connection, params, params_from_iter};
-use crate::{Entry, get_path, get_cellar_path};
+use crate::{Entry, get_vodka_path, get_cellar_path};
 use std::fs;
 use std::io::Read;
 use std::io::Write;
 
 pub fn read_file(file_name: &str) -> std::io::Result<String> {
-    let file_path = get_path(file_name);
+    let file_path = get_vodka_path(file_name);
     
     let mut file_content = String::new();
     let mut file = fs::File::open(&file_path)?;
@@ -19,8 +19,9 @@ pub fn read_file(file_name: &str) -> std::io::Result<String> {
     Ok(file_content)
 }
 
+// will abort if file already exists
 pub fn write_to_file(file_name: &str, content: String, overwrite: bool) -> std::io::Result<()> {
-    let file_path = get_path(file_name);
+    let file_path = get_vodka_path(file_name);
 
     if file_path.exists() && !overwrite {
         eprintln!("Error: file {:?} already exists", file_path);

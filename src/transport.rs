@@ -1,10 +1,11 @@
-use crate::{get_cellar_path, get_relative_path, Entry, Error};
+use crate::{get_cellar_path, get_absolute_path, Entry, Error};
 use crate::store;
 use csv::{Writer, ReaderBuilder};
 use std::path::PathBuf;
 
+// provide path of export csv
 pub fn export(export_file: &str, master_key: &[u8], overwrite: bool) -> Result<(), Error> {
-    let path: PathBuf = get_relative_path(export_file);
+    let path: PathBuf = get_absolute_path(export_file);
     let entries: Vec<Entry> = store::get_all_rows();
 
     if !overwrite && path.exists() {
@@ -20,8 +21,10 @@ pub fn export(export_file: &str, master_key: &[u8], overwrite: bool) -> Result<(
     Ok(())
 }
 
+// provide path of csv imported
+// erases existing db
 pub fn import(import_file: &str, master_key: &[u8], overwrite: bool) -> Result<(), crate::Error> {
-    let import_path: PathBuf = get_relative_path(import_file);
+    let import_path: PathBuf = get_absolute_path(import_file);
     let cellar_path: PathBuf = get_cellar_path();
 
     if !overwrite && cellar_path.exists() {
