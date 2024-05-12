@@ -37,7 +37,7 @@ fn cli() -> Command {
         .subcommand(
             Command::new("import")
                 .about("Import passwords from a CSV file")
-                .arg(arg!(<FILE>).required(true))
+                .arg(arg!(<FILE>).required(true).action(clap::ArgAction::SetTrue))
         )
 }
 
@@ -58,7 +58,7 @@ fn main() -> Result<(), vodka::Error> {
             let (login, name) = vodka::parse_fullname(fullname);
             let comment = sub_matches.get_one::<String>("comment").unwrap_or(&String::new()).to_string();
             let password_unencrypted: String;
-            if sub_matches.contains_id("random") {
+            if sub_matches.get_flag("random") {
                 password_unencrypted = crypto::get_random_password();
             } else {
                 password_unencrypted = sub_matches.get_one::<String>("password").unwrap().to_string()
