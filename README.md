@@ -4,15 +4,25 @@ CLI password manager (wip)
 ## Commands
 `vodka setup`
 
-`vodka add <name> --password <password>` add a new password
+`vodka add <name> --password <password>` 
 
-`vodka copy <name>` copy a password to clipboard
+> add a new password. Pass `--random` to generate a random password 24 chars long. Guarantees at least 1 capital letter, number, and special character
 
-`vodka change-master` change the master password
+`vodka copy <name>` 
 
-`vodka export` export all passwords to a csv file (Warning: will be unencrypted so delete the csv once you're done with it)
+> copy a password to clipboard
 
-`vodka import` import passwords from a csv file. overwrites existing passwords
+`vodka change-master` 
+
+> change the master password
+
+`vodka export` 
+
+> export all passwords to a csv file (Warning: will be unencrypted so delete the csv once you're done with it)
+
+`vodka import` 
+
+> import passwords from a csv file. overwrites existing passwords
 
 `vodka help`
 
