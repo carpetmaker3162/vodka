@@ -12,7 +12,7 @@ use rand_core::OsRng;
 use rand::{Rng, prelude::SliceRandom};
 use sha2::{Sha256, Digest};
 
-pub fn hash_bcrypt(password: &[u8]) -> Option<String> {
+pub fn hash_argon2(password: &[u8]) -> Option<String> {
     let argon2 = Argon2::default();
     let salt = SaltString::generate(&mut OsRng);
     

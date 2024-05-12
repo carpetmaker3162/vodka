@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 pub fn set_master(master_key: String, overwrite: bool) -> std::io::Result<()> {
-    if let Some(hashed) = crypto::hash_bcrypt(master_key.as_bytes())
+    if let Some(hashed) = crypto::hash_argon2(master_key.as_bytes())
     {
         store::write_to_file(".master_key", hashed, overwrite)?;
     }
