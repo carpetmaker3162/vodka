@@ -42,7 +42,7 @@ pub fn import(import_file: &str, master_key: &[u8], overwrite: bool) -> Result<(
         let password: String = record.get(2).unwrap_or("").to_string();
         let comment = record.get(3).unwrap_or("").to_string();
 
-        crate::add_password(Entry::new(
+        crate::add_entry(Entry::new(
             name,
             login,
             password,

@@ -1,8 +1,8 @@
 use arboard::Clipboard;
 use clap::{arg, Command};
 use rpassword::prompt_password;
-use vodka::{crypto, setup, transport};
-use vodka::{Entry, ask_for_confirmation};
+use vodka::{crypto, display, setup, transport};
+use vodka::{Entry, SearchResult, ask_for_confirmation};
 
 fn cli() -> Command {
     Command::new("vodka")
@@ -26,8 +26,13 @@ fn cli() -> Command {
                 .arg(arg!(<FULLNAME>).required(true))
         )
         .subcommand(
-            Command::new("change-master")
-                .about("Change the master key")
+            Command::new("search")
+                .about("Search for an entry with fullname")
+                .arg(arg!(<FULLNAME>).required(true))
+        )
+        .subcommand(
+            Command::new("list")
+                .about("List all existing entries")
         )
         .subcommand(
             Command::new("export")
@@ -38,6 +43,10 @@ fn cli() -> Command {
             Command::new("import")
                 .about("Import passwords from a CSV file")
                 .arg(arg!(<FILE>).required(true).action(clap::ArgAction::SetTrue))
+        )
+        .subcommand(
+            Command::new("change-master")
+                .about("Change the master key")
         )
 }
 
@@ -65,7 +74,7 @@ fn main() -> Result<(), vodka::Error> {
             }
 
             let entry = Entry::new(name, login, password_unencrypted, comment, &master_key_sha256);
-            match vodka::add_password(entry) {
+            match vodka::add_entry(entry) {
                 Ok(_) => {},
                 Err(e) => { eprintln!("Error while adding password: {:?}", e); }
             }
@@ -77,19 +86,36 @@ fn main() -> Result<(), vodka::Error> {
             let (login, name) = vodka::parse_fullname(fullname);
 
             // strict search
-            if let Some(password) = vodka::get_password(name, login, &master_key_sha256, true) {
-                let mut clipboard = Clipboard::new().unwrap();
-                clipboard.set_text(password).unwrap();
-            } else {
-                eprintln!("No entries found!")
+            match vodka::get_entry(name, login, true) {
+                SearchResult::OneResult(entry) => {
+                    let mut clipboard = Clipboard::new().unwrap();
+                    let password = entry.get_password(&master_key_sha256);
+                    clipboard.set_text(password).unwrap();
+                },
+                SearchResult::NoResults => { eprintln!("No entries found!"); },
+                SearchResult::ManyResults(_) => { eprintln!("Several possible entries found. Try searching?"); }
             }
         },
-        /* Some(("search", sub_matches)) => {
-            
-        },
-        Some(("list", sub_matches)) => {
+        Some(("search", sub_matches)) => {
+            vodka::unlock();
 
-        }, */
+            let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
+            let (login, name) = vodka::parse_fullname(fullname);
+
+            match vodka::get_entry(name, login, false) {
+                SearchResult::OneResult(entry) => {
+                    display::display(vec![entry]);
+                },
+                SearchResult::NoResults => { eprintln!("No entries found!") },
+                SearchResult::ManyResults(entries) => {
+                    display::display(entries);
+                }
+            }
+        },
+        Some(("list", _)) => {
+            vodka::unlock();
+            display::display_all();
+        },
         Some(("export", sub_matches)) => {
             let master_key_sha256 = vodka::unlock();
 

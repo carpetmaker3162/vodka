@@ -1,13 +1,15 @@
+use cli_table::{Cell, CellStruct};
 use rpassword::prompt_password;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-pub mod setup;
 pub mod crypto;
+pub mod display;
+pub mod setup;
 pub mod store;
 pub mod transport;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Entry {
     pub name: String,
     pub login: String,
@@ -39,6 +41,10 @@ impl Entry {
             password: self.get_password(master_key),
             comment: self.comment.clone()
         }
+    }
+
+    pub fn as_table_row(&self) -> Vec<CellStruct> {
+        vec![(&self.name).cell(), (&self.login).cell(), "****".cell(), (&self.comment).cell()]
     }
 }
 
@@ -99,6 +105,12 @@ impl From<std::io::Error> for Error {
     }
 }
 
+pub enum SearchResult {
+    OneResult(Entry),
+    NoResults,
+    ManyResults(Vec<Entry>),
+}
+
 pub fn get_cellar_path() -> PathBuf {
     get_vodka_path("cellar.sqlite")
 }
@@ -120,7 +132,6 @@ pub fn get_vodka_path(file_name: &str) -> PathBuf {
     file_path
 }
 
-// i think this technically returns an absolute path but whatever
 pub fn get_absolute_path(path: &str) -> PathBuf {
     std::env::current_dir().unwrap().join(path)
 }
@@ -137,31 +148,30 @@ pub fn parse_fullname(fullname: String) -> (String, String) {
     }
 }
 
-pub fn add_password(entry: Entry) -> Result<(), Error> {
+pub fn add_entry(entry: Entry) -> Result<(), Error> {
     store::add_entry(entry.name, entry.login, &entry.password, entry.comment)?;
     
     Ok(())
 }
 
 // will always return a single entry (for now?)
-pub fn get_password(name: String, login: String, master_key: &[u8], strict: bool) -> Option<String> {
+pub fn get_entry(name: String, login: String, strict: bool) -> SearchResult {
     let result_entries: Vec<Entry> = store::search_entries(name, login.clone());
     
     if result_entries.len() == 1 {
-        return Some(result_entries[0].get_password(master_key));
+        return SearchResult::OneResult(result_entries[0].clone());
     } else if result_entries.len() == 0 {
-        return None;
+        return SearchResult::NoResults;
     }
 
     // if looking for a single entry, and no login is provided, return the entry with no login
     if strict && login.is_empty() {
         if let Some(entry) = result_entries.iter().find(|&entry| entry.login.is_empty()) {
-            return Some(entry.get_password(master_key));
+            return SearchResult::OneResult(entry.clone());
         }
     }
     
-    eprintln!("Multiple entries found! (not implemented yet)");
-    std::process::exit(0);
+    SearchResult::ManyResults(result_entries)
 }
 
 // Ask the user for the master key. Once verified, returns the SHA-256 of the password

@@ -40,9 +40,9 @@ pub fn write_to_file(file_name: &str, content: String, overwrite: bool) -> std::
 pub fn add_entry(name: String, login: String, password: &[u8], comment: String) -> Result<(), crate::Error> {
     let cellar_path = get_cellar_path();
 
-    let mut connection: Connection;
-    if !cellar_path.exists() {
-        connection = Connection::open(cellar_path).unwrap();
+    let cellar_not_setup = !cellar_path.exists();
+    let mut connection = Connection::open(&cellar_path).unwrap();
+    if cellar_not_setup {
         connection.execute(
             "CREATE TABLE passwords (
                 id INTEGER PRIMARY KEY, 
@@ -53,8 +53,6 @@ pub fn add_entry(name: String, login: String, password: &[u8], comment: String) 
             )",
             [],
         )?;
-    } else {
-        connection = Connection::open(cellar_path).unwrap();
     }
 
     let transaction = connection.transaction().unwrap();
@@ -99,6 +97,7 @@ pub fn search_entries(name: String, login: String) -> Vec<Entry> {
     let mut stmt = transaction
         .prepare(&query_command)
         .unwrap();
+    
     let query_match = stmt
         .query_map(params_from_iter(query_params), |row| {
             Ok(Entry {
