@@ -200,7 +200,7 @@ pub fn unlock_with_prompt(prompt: &str) -> Vec<u8> {
 
 pub fn ask_for_confirmation(message: String) -> bool {
     eprintln!("{}\n", message);
-    eprint!("Proceed? [Y/n]: ");
+    eprint!("Proceed? [y/N]: ");
 
     let mut selection = String::new();
     std::io::stdin().read_line(&mut selection).expect("Failed to read line");

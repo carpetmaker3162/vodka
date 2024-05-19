@@ -1,8 +1,7 @@
 use arboard::Clipboard;
 use clap::{arg, Command};
-use rpassword::prompt_password;
-use vodka::{crypto, display, setup, transport};
-use vodka::{Entry, SearchResult, ask_for_confirmation};
+use vodka::{crypto, display, setup, store, transport};
+use vodka::{Entry, SearchResult};
 
 fn cli() -> Command {
     Command::new("vodka")
@@ -42,11 +41,15 @@ fn cli() -> Command {
         .subcommand(
             Command::new("import")
                 .about("Import passwords from a CSV file")
-                .arg(arg!(<FILE>).required(true).action(clap::ArgAction::SetTrue))
+                .arg(arg!(<FILE>).required(true))
         )
         .subcommand(
             Command::new("change-master")
                 .about("Change the master key")
+        )
+        .subcommand(
+            Command::new("erase")
+                .about("Erase all existing passwords")
         )
 }
 
@@ -122,9 +125,15 @@ fn main() -> Result<(), vodka::Error> {
             let file_path = sub_matches.get_one::<String>("FILE").unwrap().as_str();
             if let Err(e) = transport::export(file_path, &master_key_sha256, false) {
                 match e.kind() {
-                    vodka::ErrorKind::ExportFileExists => if ask_for_confirmation(format!("{} already exists. This will overwrite the existing file.", file_path)) {
+                    vodka::ErrorKind::ExportFileExists => {
+                        let confirmed = vodka::ask_for_confirmation(
+                            format!("{} already exists. This will overwrite the existing file.", file_path)
+                        );
+
+                        if confirmed {
                             transport::export(file_path, &master_key_sha256, true)?;
-                        },
+                        }
+                    },
                     _ => { eprintln!("Error during exporting: {:?}", e) },
                 }
             }
@@ -135,9 +144,15 @@ fn main() -> Result<(), vodka::Error> {
             let file_path = sub_matches.get_one::<String>("FILE").unwrap().as_str();
             if let Err(e) = transport::import(file_path, &master_key_sha256, false) {
                 match e.kind() {
-                    vodka::ErrorKind::ImportFileExists => if ask_for_confirmation(String::from("cellar.sqlite already exists. This will overwrite the existing file.")) {
+                    vodka::ErrorKind::ImportFileExists => {
+                        let confirmed = vodka::ask_for_confirmation(
+                            String::from("cellar.sqlite already exists. This will overwrite the existing file.")
+                        );
+                        
+                        if confirmed {
                             transport::import(file_path, &master_key_sha256, true)?;
-                        },
+                        }
+                    },
                     _ => { eprintln!("Error during importing: {:?}", e) },
                 }
             }
@@ -145,13 +160,25 @@ fn main() -> Result<(), vodka::Error> {
         Some(("change-master", _)) => {
             vodka::unlock_with_prompt("Enter old master key: ");
             
-            let new_master_key = prompt_password("Enter new master key: ").unwrap();
-            if new_master_key != prompt_password("Confirm new master key: ").unwrap() {
+            let new_master_key = rpassword::prompt_password("Enter new master key: ").unwrap();
+            if new_master_key != rpassword::prompt_password("Confirm new master key: ").unwrap() {
                 eprintln!("Error: Please enter the same master key! (No changes were made)");
                 std::process::exit(1);
             }
 
             setup::set_master(new_master_key, true)?;
+        },
+        Some(("erase", _)) => {
+            let entry_count = store::get_all_rows().len();
+            
+            let confirmed = vodka::ask_for_confirmation(format!("{} entries will be erased.", entry_count));
+            if !confirmed {
+                std::process::exit(0);
+            }
+            
+            vodka::unlock();
+            
+            store::erase_all()?;
         },
         _ => {}
     }
