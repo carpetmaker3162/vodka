@@ -59,7 +59,7 @@ fn main() -> Result<(), vodka::Error> {
     match matches.subcommand() {
         Some(("setup", _)) => {
             if let Err(e) = setup::setup_vodka() {
-                eprintln!("Error while setting up vodka: {}", e);
+                eprintln!("Error while setting up vodka: {:?}", e);
                 std::process::exit(1);
             }
         },

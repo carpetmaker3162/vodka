@@ -39,31 +39,12 @@ pub fn write_to_file(file_name: &str, content: String, overwrite: bool) -> std::
 
 pub fn add_entry(name: String, login: String, password: &[u8], comment: String) -> Result<(), crate::Error> {
     let cellar_path = get_cellar_path();
-
-    let cellar_not_setup = !cellar_path.exists();
     let mut connection = Connection::open(&cellar_path).unwrap();
-    if cellar_not_setup {
-        connection.execute(
-            "CREATE TABLE passwords (
-                id INTEGER PRIMARY KEY, 
-                name TEXT NOT NULL, 
-                login TEXT NOT NULL, 
-                password BLOB NOT NULL, 
-                comment TEXT
-            )",
-            [],
-        )?;
-    }
-
     let transaction = connection.transaction().unwrap();
 
-    let max_id = transaction
-        .query_row("SELECT MAX(id) FROM passwords", [], |row| row.get(0))
-        .unwrap_or(0);
-
     transaction.execute(
-        "INSERT INTO passwords (id, name, login, password, comment) VALUES (?, ?, ?, ?, ?)",
-        params![max_id + 1, name, login, password, comment]
+        "INSERT INTO passwords (name, login, password, comment) VALUES (?, ?, ?, ?)",
+        params![name, login, password, comment]
     )?;
 
     transaction.commit()?;
@@ -143,16 +124,7 @@ pub fn erase_all() -> Result<(), crate::Error> {
 
     connection.execute("DROP TABLE IF EXISTS passwords", [])?;
 
-    connection.execute(
-        "CREATE TABLE passwords (
-            id INTEGER PRIMARY KEY, 
-            name TEXT NOT NULL, 
-            login TEXT NOT NULL, 
-            password BLOB NOT NULL, 
-            comment TEXT
-        )",
-        [],
-    )?;
+    crate::setup::setup_db()?;
 
     Ok(())
 }

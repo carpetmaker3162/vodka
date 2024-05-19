@@ -44,7 +44,12 @@ impl Entry {
     }
 
     pub fn as_table_row(&self) -> Vec<CellStruct> {
-        vec![(&self.name).cell(), (&self.login).cell(), "****".cell(), (&self.comment).cell()]
+        vec![
+            (&self.name).cell(),
+            (&self.login).cell(),
+            "********".cell(),
+            (&self.comment).cell()
+        ]
     }
 }
 

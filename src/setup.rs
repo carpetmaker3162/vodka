@@ -1,6 +1,6 @@
-use crate::crypto;
-use crate::store;
+use crate::{crypto, store, get_cellar_path};
 use rpassword::prompt_password;
+use rusqlite::Connection;
 use std::fs;
 use std::path::PathBuf;
 
@@ -33,7 +33,25 @@ pub fn vodka_is_setup() -> bool {
     true
 }
 
-pub fn setup_vodka() -> std::io::Result<()> {
+pub fn setup_db() -> Result<(), crate::Error> {
+    let cellar_path = get_cellar_path();
+    let connection = Connection::open(&cellar_path).unwrap();
+    
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS passwords (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            name TEXT NOT NULL, 
+            login TEXT NOT NULL, 
+            password BLOB NOT NULL, 
+            comment TEXT
+        )",
+        [],
+    )?;
+
+    Ok(())
+}
+
+pub fn setup_vodka() -> Result<(), crate::Error> {
     let vodka_dir = ".vodka";
     let mut vodka_path = PathBuf::new();
     
@@ -53,12 +71,9 @@ pub fn setup_vodka() -> std::io::Result<()> {
         eprintln!("Error: Please enter the same master key!");
         return Ok(());
     }
-    
-    match fs::create_dir_all(vodka_path) {
-        Ok(_) => {},
-        Err(_) => {},
-    }
-    
+
+    fs::create_dir_all(vodka_path)?;
+    setup_db()?;
     set_master(master_key, false)?;
     
     Ok(())
