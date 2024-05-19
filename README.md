@@ -32,6 +32,10 @@ CLI password manager (wip)
 
 > change the master password
 
+```vodka erase```
+
+> erase all existing entries
+
 ```vodka help```
 
 ## Todo
