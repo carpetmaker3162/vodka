@@ -39,8 +39,7 @@ CLI password manager (wip)
 ```vodka help```
 
 ## Todo
-- editing/deleting individual entries (XD)
-- operations by ID
+- editing individual entries
 - config file
 - GUI?
 
