@@ -16,6 +16,10 @@ CLI password manager (wip)
 
 > search for an entry, displays a cli table of results
 
+```vodka delete <id>```
+
+> delete an entry by its id. find id of entries with `vodka list`
+
 ```vodka list```
 
 > list all existing entries
