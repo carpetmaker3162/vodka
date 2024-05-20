@@ -1,4 +1,5 @@
-use crate::{crypto, store, get_cellar_path};
+use crate::{crypto, store};
+use crate::{Error, get_cellar_path, get_vodka_path};
 use rpassword::prompt_password;
 use rusqlite::Connection;
 use std::fs;
@@ -13,24 +14,23 @@ pub fn set_master(master_key: String, overwrite: bool) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn vodka_is_setup() -> bool {
-    let mut vodka_path = PathBuf::new();
-    let vodka_dir = ".vodka";
-    if let Some(home_dir) = dirs::home_dir() {
-        vodka_path = home_dir.join(vodka_dir);
-    }
-
+pub fn check_setup() -> Result<(), Error> {
+    let vodka_path = get_vodka_path("");
     if !vodka_path.exists() {
-        return false;
+        return Err(Error::VodkaFolderNotFound);
     }
 
-    let master_key_path = vodka_path.join(".master_key");
-    
+    let master_key_path = get_vodka_path(".master_key");
     if !master_key_path.exists() {
-        return false;
+        return Err(Error::MasterKeyFileNotFound);
     }
 
-    true
+    let cellar_path = get_cellar_path();
+    if !cellar_path.exists() {
+        return Err(Error::CellarFileNotFound);
+    }
+
+    Ok(())
 }
 
 pub fn setup_db() -> Result<(), crate::Error> {

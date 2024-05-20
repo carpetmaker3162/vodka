@@ -9,7 +9,7 @@ pub fn export(export_file: &str, master_key: &[u8], overwrite: bool) -> Result<(
     let entries: Vec<Entry> = store::get_all_rows();
 
     if !overwrite && path.exists() {
-        return Err(Error::ExportFileExists);
+        return Err(Error::ExportFileExists(path));
     }
 
     let mut writer = Writer::from_path(path).unwrap();
@@ -28,7 +28,7 @@ pub fn import(import_file: &str, master_key: &[u8], overwrite: bool) -> Result<(
     let cellar_path: PathBuf = get_cellar_path();
 
     if !overwrite && cellar_path.exists() {
-        return Err(Error::ImportFileExists);
+        return Err(Error::ImportFileExists(cellar_path));
     }
 
     store::erase_all()?;

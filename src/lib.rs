@@ -3,6 +3,7 @@ use cli_table::{Cell, CellStruct};
 use rpassword::prompt_password;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::path::PathBuf;
 
 pub mod crypto;
@@ -73,8 +74,11 @@ pub struct DecryptedEntry {
 
 #[derive(Debug)]
 pub enum Error {
-    ExportFileExists,
-    ImportFileExists,
+    ExportFileExists(PathBuf),
+    ImportFileExists(PathBuf),
+    VodkaFolderNotFound,
+    MasterKeyFileNotFound,
+    CellarFileNotFound,
     CsvError(csv::Error),
     RusqliteError(rusqlite::Error),
     IOError(std::io::Error),
@@ -84,6 +88,9 @@ pub enum Error {
 pub enum ErrorKind {
     ExportFileExists,
     ImportFileExists,
+    VodkaFolderNotFound,
+    MasterKeyFileNotFound,
+    CellarFileNotFound,
     CsvError,
     RusqliteError,
     IOError,
@@ -92,11 +99,29 @@ pub enum ErrorKind {
 impl Error {
     pub fn kind(&self) -> ErrorKind {
         match self {
-            Error::ExportFileExists => ErrorKind::ExportFileExists,
-            Error::ImportFileExists => ErrorKind::ImportFileExists,
+            Error::ExportFileExists(_) => ErrorKind::ExportFileExists,
+            Error::ImportFileExists(_) => ErrorKind::ImportFileExists,
+            Error::VodkaFolderNotFound => ErrorKind::VodkaFolderNotFound,
+            Error::MasterKeyFileNotFound => ErrorKind::MasterKeyFileNotFound,
+            Error::CellarFileNotFound => ErrorKind::CellarFileNotFound,
             Error::CsvError(_) => ErrorKind::CsvError,
             Error::RusqliteError(_) => ErrorKind::RusqliteError,
             Error::IOError(_) => ErrorKind::IOError,
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::ExportFileExists(path) => write!(f, "{} already exists", path.display()),
+            Error::ImportFileExists(path) => write!(f, "cellar already exists at {}", path.display()),
+            Error::VodkaFolderNotFound => write!(f, "{} folder not found", get_vodka_path("").display()),
+            Error::MasterKeyFileNotFound => write!(f, "{} file not found", get_vodka_path(".master_key").display()),
+            Error::CellarFileNotFound => write!(f, "{} file not found", get_cellar_path().display()),
+            Error::CsvError(err) => write!(f, "CSV error: {}", err),
+            Error::RusqliteError(err) => write!(f, "SQLite error: {}", err),
+            Error::IOError(err) => write!(f, "IO error: {}", err),
         }
     }
 }
@@ -140,6 +165,10 @@ pub fn get_vodka_path(file_name: &str) -> PathBuf {
     let vodka_dir = ".vodka";
 
     if let Some(home_dir) = dirs::home_dir() {
+        if file_name.is_empty() {
+            return home_dir.join(vodka_dir);
+        }
+
         file_path = home_dir.join(vodka_dir).join(file_name);
     }
     
@@ -199,12 +228,6 @@ pub fn unlock() -> Vec<u8> {
 }
 
 pub fn unlock_with_prompt(prompt: &str) -> Vec<u8> {
-    if !setup::vodka_is_setup() {
-        eprintln!("Vodka is not set up!");
-        eprintln!("To set up: `vodka setup`");
-        std::process::exit(1);
-    }
-
     let master_key_plaintext = prompt_password(prompt).unwrap();
     
     if let Some(verified) = crypto::verify_password(master_key_plaintext.as_bytes()) {
@@ -215,6 +238,15 @@ pub fn unlock_with_prompt(prompt: &str) -> Vec<u8> {
     
     eprintln!("Error: Failed to verify!");
     std::process::exit(1);
+}
+
+pub fn vodka_is_setup() -> bool {
+    if let Err(e) = setup::check_setup() {
+        eprintln!("Error with vodka's setup: {}", e);
+        return false;
+    }
+
+    true
 }
 
 pub fn ask_for_confirmation(message: String) -> bool {
