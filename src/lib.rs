@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::PathBuf;
 
+pub mod config;
 pub mod crypto;
 pub mod display;
 pub mod setup;
@@ -172,10 +173,10 @@ pub fn get_vodka_path(file_name: &str) -> PathBuf {
         file_path = home_dir.join(vodka_dir).join(file_name);
     }
     
-    if !file_path.exists() {
+    /* if !file_path.exists() {
         eprintln!("Error: file {} not found!", file_name);
         std::process::exit(1);
-    }
+    } */
 
     file_path
 }

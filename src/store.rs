@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
 use rusqlite::{params, params_from_iter};
-use crate::{Entry, get_vodka_path, get_db};
+use crate::{Entry, Error, get_vodka_path, get_db};
 use std::fs;
 use std::io::Read;
 use std::io::Write;
 
-pub fn read_file(file_name: &str) -> std::io::Result<String> {
+pub fn read_file(file_name: &str) -> Result<String, Error> {
     let file_path = get_vodka_path(file_name);
     
     let mut file_content = String::new();
@@ -20,7 +20,7 @@ pub fn read_file(file_name: &str) -> std::io::Result<String> {
 }
 
 // will abort if file already exists
-pub fn write_to_file(file_name: &str, content: String, overwrite: bool) -> std::io::Result<()> {
+pub fn write_to_file(file_name: &str, content: String, overwrite: bool) -> Result<(), Error> {
     let file_path = get_vodka_path(file_name);
 
     if file_path.exists() && !overwrite {
@@ -58,7 +58,7 @@ pub fn get_next_id() -> i32 {
     }
 }
 
-pub fn add_entry(name: String, login: String, password: &[u8], comment: String) -> Result<(), crate::Error> {
+pub fn add_entry(name: String, login: String, password: &[u8], comment: String) -> Result<(), Error> {
     let connection = get_db();
 
     connection.execute(
@@ -140,7 +140,7 @@ pub fn get_entry_by_id(id: i32) -> Option<Entry> {
     }
 }
 
-pub fn delete_entry(id: i32) -> Result<(), crate::Error> {
+pub fn delete_entry(id: i32) -> Result<(), Error> {
     let connection = get_db();
     
     connection.execute(
@@ -174,7 +174,7 @@ pub fn get_all_rows() -> Vec<Entry> {
     entries.unwrap()
 }
 
-pub fn erase_all() -> Result<(), crate::Error> {
+pub fn erase_all() -> Result<(), Error> {
     let connection = get_db();
 
     // resets sqlite_sequence as well?

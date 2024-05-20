@@ -1,11 +1,11 @@
-use crate::{crypto, store};
+use crate::{config, crypto, store};
 use crate::{Error, get_cellar_path, get_vodka_path};
 use rpassword::prompt_password;
 use rusqlite::Connection;
 use std::fs;
 use std::path::PathBuf;
 
-pub fn set_master(master_key: String, overwrite: bool) -> std::io::Result<()> {
+pub fn set_master(master_key: String, overwrite: bool) -> Result<(), Error> {
     if let Some(hashed) = crypto::hash_argon2(master_key.as_bytes())
     {
         store::write_to_file(".master_key", hashed, overwrite)?;
@@ -33,7 +33,7 @@ pub fn check_setup() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn setup_db() -> Result<(), crate::Error> {
+pub fn setup_db() -> Result<(), Error> {
     let cellar_path = get_cellar_path();
     let connection = Connection::open(&cellar_path).unwrap();
     
@@ -51,7 +51,7 @@ pub fn setup_db() -> Result<(), crate::Error> {
     Ok(())
 }
 
-pub fn setup_vodka() -> Result<(), crate::Error> {
+pub fn setup_vodka() -> Result<(), Error> {
     let vodka_dir = ".vodka";
     let mut vodka_path = PathBuf::new();
     
@@ -64,7 +64,8 @@ pub fn setup_vodka() -> Result<(), crate::Error> {
         return Ok(());
     }
 
-    eprintln!("Welcome to vodka! You have no idea about the greatness that you are in for!\n\nPlease enter a master key, which will be used for adding and retrieving passwords.\n");
+    eprintln!("Welcome to vodka! You have no idea about the greatness that you are in for!\n");
+    eprintln!("Please enter a master key, which will be used for adding and retrieving passwords.\n");
 
     let master_key = prompt_password("Enter master key: ").unwrap();
     if master_key != prompt_password("Confirm master key: ").unwrap() {
@@ -75,6 +76,7 @@ pub fn setup_vodka() -> Result<(), crate::Error> {
     fs::create_dir_all(vodka_path)?;
     setup_db()?;
     set_master(master_key, false)?;
+    config::create_default_config()?; // note: config created after previous setup
     
     Ok(())
 }

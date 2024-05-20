@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use aes::Aes256;
 use aes::cipher::{BlockEncrypt, BlockDecrypt, KeyInit};
 use aes::cipher::generic_array::GenericArray;

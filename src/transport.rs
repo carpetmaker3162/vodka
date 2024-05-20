@@ -1,4 +1,4 @@
-use crate::{get_cellar_path, get_absolute_path, Entry, Error};
+use crate::{Entry, Error, get_cellar_path, get_absolute_path};
 use crate::store;
 use csv::{Writer, ReaderBuilder};
 use std::path::PathBuf;
@@ -23,7 +23,7 @@ pub fn export(export_file: &str, master_key: &[u8], overwrite: bool) -> Result<(
 
 // provide path of csv imported
 // erases existing db
-pub fn import(import_file: &str, master_key: &[u8], overwrite: bool) -> Result<(), crate::Error> {
+pub fn import(import_file: &str, master_key: &[u8], overwrite: bool) -> Result<(), Error> {
     let import_path: PathBuf = get_absolute_path(import_file);
     let cellar_path: PathBuf = get_cellar_path();
 
@@ -37,10 +37,10 @@ pub fn import(import_file: &str, master_key: &[u8], overwrite: bool) -> Result<(
 
     for record in reader.records() {
         let record = record?;
-        let name = record.get(0).unwrap_or("").to_string();
-        let login = record.get(1).unwrap_or("").to_string();
-        let password: String = record.get(2).unwrap_or("").to_string();
-        let comment = record.get(3).unwrap_or("").to_string();
+        let name = record.get(1).unwrap_or("").to_string();
+        let login = record.get(2).unwrap_or("").to_string();
+        let password: String = record.get(3).unwrap_or("").to_string();
+        let comment = record.get(4).unwrap_or("").to_string();
 
         crate::add_entry(Entry::new(
             name,

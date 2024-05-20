@@ -7,7 +7,6 @@ use vodka::{Entry, SearchResult};
 fn cli() -> Command {
     Command::new("vodka")
         .about("Password Manager")
-        .arg_required_else_help(true)
         .subcommand(
             Command::new("setup")
                 .about("Sets up vodka")
@@ -219,7 +218,8 @@ fn main() -> Result<(), vodka::Error> {
             
             store::erase_all()?;
         },
-        _ => {}
+        None => eprintln!("what do you want?"),
+        _ => unreachable!(),
     }
     
     Ok(())
