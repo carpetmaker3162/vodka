@@ -1,5 +1,7 @@
+use arboard::Clipboard;
 use cli_table::{Cell, CellStruct};
 use rpassword::prompt_password;
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -11,6 +13,7 @@ pub mod transport;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Entry {
+    pub id: i32,
     pub name: String,
     pub login: String,
     pub password: Vec<u8>, // encrypted
@@ -20,7 +23,9 @@ pub struct Entry {
 impl Entry {
     // create an Entry with plaintext password. need master key
     pub fn new(name: String, login: String, password: String, comment: String, master_key: &[u8]) -> Entry {
+        // might be a problem with assuming the next id?
         Entry {
+            id: store::get_next_id(),
             name,
             login,
             password: crypto::encrypt_aes256(password.as_bytes(), master_key),
@@ -34,8 +39,10 @@ impl Entry {
         String::from_utf8(decrypted_password_bytes).unwrap()
     }
 
+    // for csv exporting (serialization)
     pub fn decrypted(&self, master_key: &[u8]) -> DecryptedEntry {
         DecryptedEntry {
+            id: self.id,
             name: self.name.clone(),
             login: self.login.clone(),
             password: self.get_password(master_key),
@@ -45,6 +52,7 @@ impl Entry {
 
     pub fn as_table_row(&self) -> Vec<CellStruct> {
         vec![
+            self.id.cell(),
             (&self.name).cell(),
             (&self.login).cell(),
             "********".cell(),
@@ -53,9 +61,10 @@ impl Entry {
     }
 }
 
-// for exporting to csv
+// for csv exporting (serialization)
 #[derive(Debug, Deserialize, Serialize)]
 pub struct DecryptedEntry {
+    pub id: i32,
     pub name: String,
     pub login: String,
     pub password: String,
@@ -93,19 +102,19 @@ impl Error {
 }
 
 impl From<csv::Error> for Error {
-    fn from (err: csv::Error) -> Self {
+    fn from(err: csv::Error) -> Self {
         Error::CsvError(err)
     }
 }
 
 impl From<rusqlite::Error> for Error {
-    fn from (err: rusqlite::Error) -> Self {
+    fn from(err: rusqlite::Error) -> Self {
         Error::RusqliteError(err)
     }
 }
 
 impl From<std::io::Error> for Error {
-    fn from (err: std::io::Error) -> Self {
+    fn from(err: std::io::Error) -> Self {
         Error::IOError(err)
     }
 }
@@ -118,6 +127,11 @@ pub enum SearchResult {
 
 pub fn get_cellar_path() -> PathBuf {
     get_vodka_path("cellar.sqlite")
+}
+
+pub fn get_db() -> Connection {
+    let cellar_path = get_cellar_path();
+    Connection::open(cellar_path).unwrap()
 }
 
 // get absolute path of a file in .vodka folder
@@ -215,4 +229,9 @@ pub fn ask_for_confirmation(message: String) -> bool {
     }
 
     false
+}
+
+pub fn copy_to_clipboard(content: String) {
+    let mut clipboard = Clipboard::new().unwrap();
+    clipboard.set_text(content).unwrap();
 }

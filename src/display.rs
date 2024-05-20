@@ -22,6 +22,7 @@ pub fn display(entries: Vec<Entry>) -> bool {
     let table = table
         .table()
         .title(vec![
+            "ID".cell().bold(true),
             "Name".cell().bold(true),
             "Login".cell().bold(true),
             "Password".cell().bold(true),

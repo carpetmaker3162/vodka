@@ -1,5 +1,6 @@
-use arboard::Clipboard;
-use clap::{arg, Command};
+#![allow(unused_imports)]
+
+use clap::{arg, Arg, ArgAction, Command};
 use vodka::{crypto, display, setup, store, transport};
 use vodka::{Entry, SearchResult};
 
@@ -22,12 +23,18 @@ fn cli() -> Command {
         .subcommand(
             Command::new("copy")
                 .about("Copy an existing password to clipboard")
-                .arg(arg!(<FULLNAME>).required(true))
+                .arg(arg!(<FULLNAME>).required(false).conflicts_with("id"))
+                .arg(arg!(-i --id <ID>).required_unless_present("FULLNAME").num_args(1))
         )
         .subcommand(
             Command::new("search")
                 .about("Search for an entry with fullname")
                 .arg(arg!(<FULLNAME>).required(true))
+        )
+        .subcommand(
+            Command::new("delete")
+                .about("Delete an entry with its ID")
+                .arg(arg!(<ID>).required(true))
         )
         .subcommand(
             Command::new("list")
@@ -70,6 +77,7 @@ fn main() -> Result<(), vodka::Error> {
             let (login, name) = vodka::parse_fullname(fullname);
             let comment = sub_matches.get_one::<String>("comment").unwrap_or(&String::new()).to_string();
             let password_unencrypted: String;
+            
             if sub_matches.get_flag("random") {
                 password_unencrypted = crypto::get_random_password();
             } else {
@@ -77,26 +85,42 @@ fn main() -> Result<(), vodka::Error> {
             }
 
             let entry = Entry::new(name, login, password_unencrypted, comment, &master_key_sha256);
-            match vodka::add_entry(entry) {
-                Ok(_) => {},
-                Err(e) => { eprintln!("Error while adding password: {:?}", e); }
+            if let Err(e) = vodka::add_entry(entry) {
+                eprintln!("Error while adding password: {:?}", e);
             }
         },
         Some(("copy", sub_matches)) => {
             let master_key_sha256 = vodka::unlock();
-
-            let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
-            let (login, name) = vodka::parse_fullname(fullname);
-
-            // strict search
-            match vodka::get_entry(name, login, true) {
-                SearchResult::OneResult(entry) => {
-                    let mut clipboard = Clipboard::new().unwrap();
+            
+            // search by id
+            if sub_matches.contains_id("id") {
+                let id = match sub_matches.get_one::<String>("id").unwrap().parse::<i32>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("Error while parsing command arguments: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+                
+                if let Some(entry) = store::get_entry_by_id(id) {
                     let password = entry.get_password(&master_key_sha256);
-                    clipboard.set_text(password).unwrap();
-                },
-                SearchResult::NoResults => { eprintln!("No entries found!"); },
-                SearchResult::ManyResults(_) => { eprintln!("Several possible entries found. Try searching?"); }
+                    vodka::copy_to_clipboard(password);
+                } else {
+                    eprintln!("No such entry found!");
+                }
+            } else { // search by fullname
+                let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
+                let (login, name) = vodka::parse_fullname(fullname);
+
+                // strict search
+                match vodka::get_entry(name, login, true) {
+                    SearchResult::OneResult(entry) => {
+                        let password = entry.get_password(&master_key_sha256);
+                        vodka::copy_to_clipboard(password);
+                    },
+                    SearchResult::NoResults => { eprintln!("No entries found!"); },
+                    SearchResult::ManyResults(_) => { eprintln!("Several possible entries found. Try searching?"); }
+                }
             }
         },
         Some(("search", sub_matches)) => {
@@ -113,6 +137,21 @@ fn main() -> Result<(), vodka::Error> {
                 SearchResult::ManyResults(entries) => {
                     display::display(entries);
                 }
+            }
+        },
+        Some(("delete", sub_matches)) => {
+            vodka::unlock();
+            
+            let id = match sub_matches.get_one::<String>("ID").unwrap().parse::<i32>() {
+                Ok(value) => value,
+                Err(e) => {
+                    eprintln!("Error while parsing command arguments: {}", e);
+                    std::process::exit(1);
+                }
+            };
+
+            if let Err(e) = store::delete_entry(id) {
+                eprintln!("Error while deleting entry {}: {:?}", id, e);
             }
         },
         Some(("list", _)) => {

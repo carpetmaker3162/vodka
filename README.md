@@ -41,7 +41,8 @@ CLI password manager (wip)
 ## Todo
 - editing/deleting individual entries (XD)
 - operations by ID
+- config file
 - GUI?
 
 ## Info
-Argon2 + AES-256
+Argon2id + AES-256
