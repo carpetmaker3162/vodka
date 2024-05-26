@@ -1,21 +1,6 @@
 use crate::Error;
 use crate::store::{read_file, write_to_file};
-use serde::Deserialize;
 use toml::{Table, Value};
-
-#[derive(Debug, Deserialize)]
-pub struct Config {
-    pub default_cmd: Option<String>,
-    pub hash_cost: Option<u8>,
-    pub requires_key: Option<RequiresKey>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct RequiresKey {
-    pub search: Option<bool>,
-    pub delete: Option<bool>,
-    pub list: Option<bool>,
-}
 
 pub trait FromValue {
     fn from_value(value: &Value) -> Self;
@@ -104,4 +89,36 @@ where
     } else {
         default
     }
+}
+
+pub fn set(path: &str, value: Value) -> Result<(), Error> {
+    let split_path: Vec<String> = path
+        .split(".")
+        .map(|s| s.to_string())
+        .collect();
+    
+    let mut config = config();
+
+    let mut current_value = config.get_mut(&split_path[0]);
+
+    for component in split_path.iter().skip(1) {
+        if let Some(v) = current_value {
+            if v.is_table() {
+                current_value = v.get_mut(component);
+            } else {
+                return Err(Error::ConfigKeyNotFound(path.to_string()));
+            }
+        } else {
+            return Err(Error::ConfigKeyNotFound(path.to_string()));
+        }
+    }
+
+    if let Some(v) = current_value {
+        *v = value;
+        let toml_content = toml::to_string(&config).unwrap();
+        write_to_file("config.toml", toml_content, true)?;
+        return Ok(())
+    }
+
+    Err(Error::ConfigKeyNotFound(path.to_string()))
 }
