@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 
 use clap::{arg, Arg, ArgAction, Command};
-use vodka::{crypto, display, setup, store, transport};
+use vodka::{config, crypto, display, setup, store, transport};
 use vodka::{Entry, SearchResult};
 
 fn cli() -> Command {
@@ -162,8 +162,8 @@ fn main() -> Result<(), vodka::Error> {
 
             let file_path = sub_matches.get_one::<String>("FILE").unwrap().as_str();
             if let Err(e) = transport::export(file_path, &master_key_sha256, false) {
-                match e.kind() {
-                    vodka::ErrorKind::ExportFileExists => {
+                match e {
+                    vodka::Error::ExportFileExists(_) => {
                         let confirmed = vodka::ask_for_confirmation(
                             format!("{} already exists. This will overwrite the existing file.", file_path)
                         );
@@ -181,8 +181,8 @@ fn main() -> Result<(), vodka::Error> {
 
             let file_path = sub_matches.get_one::<String>("FILE").unwrap().as_str();
             if let Err(e) = transport::import(file_path, &master_key_sha256, false) {
-                match e.kind() {
-                    vodka::ErrorKind::ImportFileExists => {
+                match e {
+                    vodka::Error::ImportFileExists(_) => {
                         let confirmed = vodka::ask_for_confirmation(
                             String::from("cellar.sqlite already exists. This will overwrite the existing file.")
                         );

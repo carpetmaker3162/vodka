@@ -86,35 +86,6 @@ pub enum Error {
     IOError(std::io::Error),
 }
 
-#[derive(Debug)]
-pub enum ErrorKind {
-    ExportFileExists,
-    ImportFileExists,
-    VodkaFolderNotFound,
-    MasterKeyFileNotFound,
-    CellarFileNotFound,
-    ConfigKeyNotFound,
-    CsvError,
-    RusqliteError,
-    IOError,
-}
-
-impl Error {
-    pub fn kind(&self) -> ErrorKind {
-        match self {
-            Error::ExportFileExists(_) => ErrorKind::ExportFileExists,
-            Error::ImportFileExists(_) => ErrorKind::ImportFileExists,
-            Error::VodkaFolderNotFound => ErrorKind::VodkaFolderNotFound,
-            Error::MasterKeyFileNotFound => ErrorKind::MasterKeyFileNotFound,
-            Error::CellarFileNotFound => ErrorKind::CellarFileNotFound,
-            Error::ConfigKeyNotFound(_) => ErrorKind::ConfigKeyNotFound,
-            Error::CsvError(_) => ErrorKind::CsvError,
-            Error::RusqliteError(_) => ErrorKind::RusqliteError,
-            Error::IOError(_) => ErrorKind::IOError,
-        }
-    }
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
