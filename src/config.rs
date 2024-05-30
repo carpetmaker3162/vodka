@@ -28,16 +28,31 @@ impl FromValue for bool {
     fn from_value(value: &Value) -> Self {
         match *value {
             Value::Boolean(b) => b,
-            _ => panic!("Expected a bool")
+            _ => panic!("Expected a boolean")
         }
+    }
+}
+
+pub fn parse(s: &str) -> Value {
+    if s.parse::<u32>().is_ok() {
+        return Value::from(s.parse::<u32>().unwrap());
+    }
+
+    match s {
+        "true" => Value::from(true),
+        "false" => Value::from(false),
+        _ => Value::from(s)
     }
 }
 
 pub fn create_default_config() -> Result<(), Error> {
     let default = r#"
-        default_cmd = "help"
-        hash_cost = 2
-
+        default-cmd = "help"
+        hash-memory = 19456
+        hash-iterations = 2
+        hash-parallelism = 1
+        hash = "Argon2id"
+        
         [requires-key]
         search = true
         delete = true
@@ -53,10 +68,12 @@ pub fn create_default_config() -> Result<(), Error> {
     write_to_file("config.toml", default, true)
 }
 
-pub fn config() -> Table {
-    let content = read_file("config.toml").unwrap();
+pub fn config_str() -> String {
+    read_file("config.toml").unwrap()
+}
 
-    content.parse::<Table>().unwrap()
+fn config() -> Table {
+    config_str().parse::<Table>().unwrap()
 }
 
 pub fn get<T>(path: &str, default: T) -> T 
