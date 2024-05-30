@@ -156,6 +156,7 @@ pub fn get_vodka_path(file_name: &str) -> PathBuf {
     file_path
 }
 
+// from current dir
 pub fn get_absolute_path(path: &str) -> PathBuf {
     std::env::current_dir().unwrap().join(path)
 }

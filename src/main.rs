@@ -57,6 +57,13 @@ fn cli() -> Command {
             Command::new("erase")
                 .about("Erase all existing passwords")
         )
+        .subcommand(
+            Command::new("config")
+                .about("Modify/view the existing configuration")
+                .arg(Arg::new("ACTION").action(ArgAction::Set))
+                .arg(Arg::new("KEY").required_if_eq_any([("ACTION", "set"), ("ACTION", "get")]).action(ArgAction::Set))
+                .arg(Arg::new("VALUE").required_if_eq("ACTION", "set").action(ArgAction::Set))
+        )
 }
 
 fn main() -> Result<(), vodka::Error> {
@@ -218,7 +225,32 @@ fn main() -> Result<(), vodka::Error> {
             
             store::erase_all()?;
         },
-        None => eprintln!("what do you want?"),
+        Some(("config", matches)) => {
+            let action = matches.get_one::<String>("ACTION").map(|s| s.as_str());
+            match action {
+                Some("set") => {
+                    let key = matches.get_one::<String>("KEY").unwrap();
+                    let value = matches.get_one::<String>("VALUE").unwrap();
+                    
+                    config::set(key, config::parse(value))?;
+                },
+                Some("get") => {
+                    let key = matches.get_one::<String>("KEY").unwrap();
+                    let value = config::get_as_str(key);
+                    
+                    if let Some(value) = value {
+                        println!("{} = {}", key, value);
+                    }
+                },
+                Some("path") => println!("{}", vodka::get_vodka_path("config.toml").display()),
+                None => println!("{}", config::config_str()),
+                _ => eprintln!("Error: Invalid config action '{}'", action.unwrap())
+            }
+        },
+        None => {
+            eprintln!("what do you want?");
+            config::set("hash_cost", toml::Value::Integer(3))?;
+        },
         _ => unreachable!(),
     }
     
