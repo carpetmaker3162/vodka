@@ -76,10 +76,8 @@ fn config() -> Table {
     config_str().parse::<Table>().unwrap()
 }
 
-pub fn get<T>(path: &str, default: T) -> T 
-where
-    T: FromValue
-{
+// returns value as str regardless of toml type
+pub fn get_as_str(path: &str) -> Option<String> {
     let split_path: Vec<String> = path
         .split(".")
         .map(|s| s.to_string())
@@ -94,17 +92,38 @@ where
             if v.is_table() {
                 current_value = v.get(component);
             } else {
-                return default;
+                return None;
             }
         } else {
-            return default;
+            return None;
         }
     }
 
     if let Some(v) = current_value {
-        T::from_value(v)
+        Some(v.to_string())
     } else {
-        default
+        None
+    }
+}
+
+pub fn get<T>(path: &str) -> Option<T> 
+where
+    T: FromValue
+{
+    if let Some(val) = get_as_str(path) {
+        return Some(T::from_value(&parse(&val)));
+    }
+    
+    None
+}
+
+pub fn get_or<T>(path: &str, default: T) -> T 
+where
+    T: FromValue
+{
+    match get(path) {
+        Some(val) => val,
+        None => default
     }
 }
 
