@@ -40,6 +40,18 @@ CLI password manager (wip)
 
 > erase all existing entries
 
+```vodka config```
+
+> list all configuration settings
+
+```vodka config get <key>```
+
+> retrieve the value of a specific configuration setting
+
+```vodka config set <key> <value>```
+
+> change a configuration setting
+
 ```vodka help```
 
 ## Todo
