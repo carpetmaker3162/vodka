@@ -1,17 +1,33 @@
 use aes::Aes256;
 use aes::cipher::{BlockEncrypt, BlockDecrypt, KeyInit};
 use aes::cipher::generic_array::GenericArray;
-use argon2::Argon2;
+use argon2::{Algorithm, Argon2, Params, Version};
 use argon2::password_hash::{
     PasswordHash, PasswordHasher, PasswordVerifier, SaltString
 };
-use crate::store;
+use crate::{config, store};
 use rand_core::OsRng;
 use rand::{Rng, prelude::SliceRandom};
 use sha2::{Sha256, Digest};
 
+fn get_argon2_instance() -> Argon2<'static> {
+    let m_cost: u32 = config::get_or("hash-memory", 19456).try_into().expect("Expected positive integer value for hash-memory");
+    let t_cost: u32 = config::get_or("hash-iterations", 2).try_into().expect("Expected positive integer value for hash-iterations");
+    let p_cost: u32 = config::get_or("hash-parallelism", 1).try_into().expect("Expected positive integer value for hash-parallelism");
+    
+    let algorithm = match config::get_or("hash", String::from("argon2id")).to_lowercase().as_str() {
+        "argon2d" => Algorithm::Argon2d,
+        "argon2i" => Algorithm::Argon2i,
+        _ => Algorithm::Argon2id
+    };
+    
+    let params = Params::new(m_cost, t_cost, p_cost, None).unwrap();
+    
+    Argon2::new(algorithm, Version::V0x13, params)
+}
+
 pub fn hash_argon2(password: &[u8]) -> Option<String> {
-    let argon2 = Argon2::default();
+    let argon2 = get_argon2_instance();
     let salt = SaltString::generate(&mut OsRng);
     
     if let Ok(password_hashed) = argon2.hash_password(password, &salt)
@@ -36,7 +52,7 @@ pub fn verify_password(password: &[u8]) -> Option<bool> {
         Err(_) => { return None; }
     };
     
-    let argon2 = Argon2::default();
+    let argon2 = get_argon2_instance();
     if let Ok(parsed_hash) = PasswordHash::new(&hash)
     {
         return Some(argon2.verify_password(password, &parsed_hash).is_ok());
