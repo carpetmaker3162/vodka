@@ -14,26 +14,26 @@ fn cli() -> Command {
         .subcommand(
             Command::new("add")
                 .about("Add a new password")
-                .arg(arg!(<FULLNAME>).required(true))
-                .arg(arg!(-p --password <PASSWORD>).required_unless_present("random"))
-                .arg(arg!(-c --comment <COMMENT>).required(false))
-                .arg(arg!(-r --random).num_args(0))
+                .arg(Arg::new("FULLNAME").required(true))
+                .arg(Arg::new("PASSWORD").long("password").short('p').required_unless_present("RANDOM"))
+                .arg(Arg::new("COMMENT").long("comment").short('c').required(false))
+                .arg(Arg::new("RANDOM").long("random").short('r').num_args(0))
         )
         .subcommand(
             Command::new("copy")
                 .about("Copy an existing password to clipboard")
-                .arg(arg!(<FULLNAME>).required(false).conflicts_with("id"))
-                .arg(arg!(-i --id <ID>).required_unless_present("FULLNAME").num_args(1))
+                .arg(Arg::new("FULLNAME").required(false).conflicts_with("ID"))
+                .arg(Arg::new("ID").long("id").short('i').required_unless_present("FULLNAME").num_args(1))
         )
         .subcommand(
             Command::new("search")
                 .about("Search for an entry with fullname")
-                .arg(arg!(<FULLNAME>).required(true))
+                .arg(Arg::new("FULLNAME").required(true))
         )
         .subcommand(
             Command::new("delete")
                 .about("Delete an entry with its ID")
-                .arg(arg!(<ID>).required(true))
+                .arg(Arg::new("ID").required(true))
         )
         .subcommand(
             Command::new("list")
@@ -42,12 +42,12 @@ fn cli() -> Command {
         .subcommand(
             Command::new("export")
                 .about("Export your passwords to a CSV file. Warning: They will be unencrypted so delete the file after you're done with it.")
-                .arg(arg!(<FILE>).required(true))
+                .arg(Arg::new("FILE").required(true))
         )
         .subcommand(
             Command::new("import")
                 .about("Import passwords from a CSV file")
-                .arg(arg!(<FILE>).required(true))
+                .arg(Arg::new("FILE").required(true))
         )
         .subcommand(
             Command::new("change-master")
@@ -69,18 +69,18 @@ fn main() -> Result<(), vodka::Error> {
                 std::process::exit(1);
             }
         },
-        Some(("add", sub_matches)) => {
+        Some(("add", matches)) => {
             let master_key_sha256 = vodka::unlock();
 
-            let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
+            let fullname = matches.get_one::<String>("FULLNAME").unwrap().to_string();
             let (login, name) = vodka::parse_fullname(fullname);
-            let comment = sub_matches.get_one::<String>("comment").unwrap_or(&String::new()).to_string();
+            let comment = matches.get_one::<String>("COMMENT").unwrap_or(&String::new()).to_string();
             let password_unencrypted: String;
             
-            if sub_matches.get_flag("random") {
+            if matches.get_flag("RANDOM") {
                 password_unencrypted = crypto::get_random_password();
             } else {
-                password_unencrypted = sub_matches.get_one::<String>("password").unwrap().to_string()
+                password_unencrypted = matches.get_one::<String>("PASSWORD").unwrap().to_string()
             }
 
             let entry = Entry::new(name, login, password_unencrypted, comment, &master_key_sha256);
@@ -88,12 +88,12 @@ fn main() -> Result<(), vodka::Error> {
                 eprintln!("Error while adding password: {:?}", e);
             }
         },
-        Some(("copy", sub_matches)) => {
+        Some(("copy", matches)) => {
             let master_key_sha256 = vodka::unlock();
             
             // search by id
-            if sub_matches.contains_id("id") {
-                let id = match sub_matches.get_one::<String>("id").unwrap().parse::<i32>() {
+            if matches.contains_id("ID") {
+                let id = match matches.get_one::<String>("ID").unwrap().parse::<i32>() {
                     Ok(value) => value,
                     Err(e) => {
                         eprintln!("Error while parsing command arguments: {}", e);
@@ -108,7 +108,7 @@ fn main() -> Result<(), vodka::Error> {
                     eprintln!("No such entry found!");
                 }
             } else { // search by fullname
-                let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
+                let fullname = matches.get_one::<String>("FULLNAME").unwrap().to_string();
                 let (login, name) = vodka::parse_fullname(fullname);
 
                 // strict search
@@ -122,10 +122,10 @@ fn main() -> Result<(), vodka::Error> {
                 }
             }
         },
-        Some(("search", sub_matches)) => {
+        Some(("search", matches)) => {
             vodka::unlock();
 
-            let fullname = sub_matches.get_one::<String>("FULLNAME").unwrap().to_string();
+            let fullname = matches.get_one::<String>("FULLNAME").unwrap().to_string();
             let (login, name) = vodka::parse_fullname(fullname);
 
             match vodka::get_entry(name, login, false) {
@@ -138,10 +138,10 @@ fn main() -> Result<(), vodka::Error> {
                 }
             }
         },
-        Some(("delete", sub_matches)) => {
+        Some(("delete", matches)) => {
             vodka::unlock();
             
-            let id = match sub_matches.get_one::<String>("ID").unwrap().parse::<i32>() {
+            let id = match matches.get_one::<String>("ID").unwrap().parse::<i32>() {
                 Ok(value) => value,
                 Err(e) => {
                     eprintln!("Error while parsing command arguments: {}", e);
@@ -157,10 +157,10 @@ fn main() -> Result<(), vodka::Error> {
             vodka::unlock();
             display::display_all();
         },
-        Some(("export", sub_matches)) => {
+        Some(("export", matches)) => {
             let master_key_sha256 = vodka::unlock();
 
-            let file_path = sub_matches.get_one::<String>("FILE").unwrap().as_str();
+            let file_path = matches.get_one::<String>("FILE").unwrap().as_str();
             if let Err(e) = transport::export(file_path, &master_key_sha256, false) {
                 match e {
                     vodka::Error::ExportFileExists(_) => {
@@ -176,10 +176,10 @@ fn main() -> Result<(), vodka::Error> {
                 }
             }
         },
-        Some(("import", sub_matches)) => {
+        Some(("import", matches)) => {
             let master_key_sha256 = vodka::unlock();
 
-            let file_path = sub_matches.get_one::<String>("FILE").unwrap().as_str();
+            let file_path = matches.get_one::<String>("FILE").unwrap().as_str();
             if let Err(e) = transport::import(file_path, &master_key_sha256, false) {
                 match e {
                     vodka::Error::ImportFileExists(_) => {
