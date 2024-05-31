@@ -275,10 +275,9 @@ fn main() -> Result<(), vodka::Error> {
             }
         },
         None => {
-            cli().print_help()?;
             let default_cmd = config::get_or("default-cmd", String::from("help"));
 
-            match default_cmd.as_str() {
+            match default_cmd.as_str().trim_matches('"') {
                 "list" => {
                     vodka::unlock_if_required("list");
                     display::display_all();
