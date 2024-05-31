@@ -155,7 +155,7 @@ fn main() -> Result<(), vodka::Error> {
             }
         },
         Some(("search", matches)) => {
-            vodka::unlock();
+            vodka::unlock_if_required("search");
 
             let fullname = matches.get_one::<String>("FULLNAME").unwrap().to_string();
             let (login, name) = vodka::parse_fullname(fullname);
@@ -171,7 +171,7 @@ fn main() -> Result<(), vodka::Error> {
             }
         },
         Some(("delete", matches)) => {
-            vodka::unlock();
+            vodka::unlock_if_required("delete");
             
             let id = match matches.get_one::<String>("ID").unwrap().parse::<i32>() {
                 Ok(value) => value,
@@ -186,7 +186,7 @@ fn main() -> Result<(), vodka::Error> {
             }
         },
         Some(("list", _)) => {
-            vodka::unlock();
+            vodka::unlock_if_required("list");
             display::display_all();
         },
         Some(("export", matches)) => {
@@ -251,6 +251,8 @@ fn main() -> Result<(), vodka::Error> {
             store::erase_all()?;
         },
         Some(("config", matches)) => {
+            vodka::unlock_if_required("config");
+
             let action = matches.get_one::<String>("ACTION").map(|s| s.as_str());
             match action {
                 Some("set") => {
@@ -268,13 +270,23 @@ fn main() -> Result<(), vodka::Error> {
                     }
                 },
                 Some("path") => println!("{}", vodka::get_vodka_path("config.toml").display()),
-                None => println!("{}", config::config_str()),
+                None => println!("{}", config::config_str().trim()),
                 _ => eprintln!("Error: Invalid config action '{}'", action.unwrap())
             }
         },
         None => {
-            eprintln!("what do you want?");
-            config::set("hash_cost", toml::Value::Integer(3))?;
+            cli().print_help()?;
+            let default_cmd = config::get_or("default-cmd", String::from("help"));
+
+            match default_cmd.as_str() {
+                "list" => {
+                    vodka::unlock_if_required("list");
+                    display::display_all();
+                },
+                _ => { // help
+                    cli().print_help()?;
+                }
+            }
         },
         _ => unreachable!(),
     }

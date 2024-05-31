@@ -204,6 +204,18 @@ pub fn unlock() -> Vec<u8> {
     unlock_with_prompt("Enter master key: ")
 }
 
+// based on config (requires-key). require by default
+pub fn unlock_if_required(command: &str) -> Option<Vec<u8>> {
+    if config::get_or(
+        &format!("requires-key.{}", command), 
+        true
+    ) {
+        Some(unlock_with_prompt("Enter master key: "))
+    } else {
+        None
+    }
+}
+
 pub fn unlock_with_prompt(prompt: &str) -> Vec<u8> {
     let master_key_plaintext = prompt_password(prompt).unwrap();
     

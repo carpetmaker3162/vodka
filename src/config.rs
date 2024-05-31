@@ -57,6 +57,7 @@ pub fn create_default_config() -> Result<(), Error> {
         search = true
         delete = true
         list = true
+        config = false
     "#
         .lines()
         .map(|line| line.trim_start())
