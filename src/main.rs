@@ -16,14 +16,6 @@ fn cli() -> Command {
                 .about("Add a new password")
                 .arg(Arg::new("FULLNAME")
                     .required(true))
-                .arg(Arg::new("PASSWORD")
-                    .long("password")
-                    .short('p')
-                    .required_unless_present("RANDOM"))
-                .arg(Arg::new("COMMENT")
-                    .long("comment")
-                    .short('c')
-                    .required(false))
                 .arg(Arg::new("RANDOM")
                     .long("random")
                     .short('r')
@@ -106,14 +98,19 @@ fn main() -> Result<(), vodka::Error> {
 
             let fullname = matches.get_one::<String>("FULLNAME").unwrap().to_string();
             let (login, name) = vodka::parse_fullname(fullname);
-            let comment = matches.get_one::<String>("COMMENT").unwrap_or(&String::new()).to_string();
+            let mut comment = String::new();
             let password_unencrypted: String;
             
             if matches.get_flag("RANDOM") {
                 password_unencrypted = crypto::get_random_password();
             } else {
-                password_unencrypted = matches.get_one::<String>("PASSWORD").unwrap().to_string()
+                password_unencrypted = rpassword::prompt_password(
+                    format!("Create password for {}@{}: ", login, name)
+                ).unwrap();
             }
+
+            eprint!("Comments (optional): ");
+            std::io::stdin().read_line(&mut comment)?;
 
             let entry = Entry::new(name, login, password_unencrypted, comment, &master_key_sha256);
             if let Err(e) = vodka::add_entry(entry) {
