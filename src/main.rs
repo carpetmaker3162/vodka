@@ -1,6 +1,4 @@
-#![allow(unused_imports)]
-
-use clap::{arg, Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, Command};
 use vodka::{config, crypto, display, setup, store, transport};
 use vodka::{Entry, SearchResult};
 
